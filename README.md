@@ -176,6 +176,49 @@ docker-compose down
 
 ---
 
+## 📱 App Móvil Android (APK)
+
+Cyberguru cuenta con soporte nativo para **Android** empaquetado con Capacitor y Gradle, permitiendo ejecutar el escáner y el dashboard SOC directamente en tu smartphone o tablet Android:
+
+### Compilar la APK
+
+- **En Windows (PowerShell):**
+  ```powershell
+  .\build-apk.ps1
+  ```
+- **En Linux / macOS (Bash):**
+  ```bash
+  chmod +x build-apk.sh
+  ./build-apk.sh
+  ```
+
+### Instalación en el Dispositivo
+
+El binario compilado se genera en la raíz del proyecto como `Cyberguru.apk` (~4.1 MB). Para instalarlo mediante ADB por USB o Wi-Fi:
+
+```bash
+adb install -r Cyberguru.apk
+```
+
+O transfiere directamente `Cyberguru.apk` a tu dispositivo móvil e instálalo seleccionando *"Instalar desde fuentes desconocidas"*.
+
+### Capacidades en Android
+- **Modo Móvil Autónomo:** Escaneo local de dispositivos Wi-Fi en la red del teléfono, detección de balizas BLE de proximidad y almacenamiento persistente en el dispositivo.
+- **Conexión a Servidor Central:** Posibilidad de vincular la app a un servidor Cyberguru Docker remoto en la red (ej. `http://192.168.1.100:8080`) para sincronizar alertas y telemetría de toda la infraestructura.
+
+```bash
+# Ver los registros del escáner en tiempo real
+docker-compose logs -f cyberguru
+
+# Comprobar el estado del contenedor
+docker-compose ps
+
+# Detener el contenedor
+docker-compose down
+```
+
+---
+
 ## 📡 API REST
 
 | Método | Endpoint | Descripción | Parámetros / Carga |

@@ -1,0 +1,12 @@
+{
+  "appId": "io.cyberguru.app",
+  "appName": "Cyberguru",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

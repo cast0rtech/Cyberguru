@@ -36,3 +36,9 @@ yarn-error.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Android Gradle build
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
+*.apk

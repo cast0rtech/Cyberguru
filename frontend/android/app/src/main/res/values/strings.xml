@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cyberguru</string>
+    <string name="title_activity_main">Cyberguru</string>
+    <string name="package_name">io.cyberguru.app</string>
+    <string name="custom_url_scheme">io.cyberguru.app</string>
+</resources>
