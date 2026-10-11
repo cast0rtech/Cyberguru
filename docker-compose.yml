@@ -1,0 +1,24 @@
+services:
+  cyberguru:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cyberguru:latest
+    container_name: cyberguru
+    network_mode: host
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - cyberguru_data:/app/data
+    environment:
+      - PORT=8080
+      - DB_PATH=/app/data/cyberguru.db
+      - FRONTEND_DIR=/app/frontend/dist
+      - SCAN_INTERVAL_MIN=5
+      - SIMULATE_BLE_IF_ABSENT=true
+
+volumes:
+  cyberguru_data:
+    driver: local
