@@ -9,8 +9,9 @@ type Device struct {
 	IP          string    `json:"ip"`
 	Hostname    string    `json:"hostname"`
 	Vendor      string    `json:"vendor"`
-	DeviceType  string    `json:"device_type"` // "Ethernet", "WiFi", "SNMP", "BLE"
+	DeviceType  string    `json:"device_type"` // "Ethernet", "WiFi", "SNMP", "BLE", "Camera", "NAS"
 	OSInfo      string    `json:"os_info"`
+	Services    string    `json:"services"`    // Puertos y protocolos detectados (ej: "RTSP, ONVIF" o "SMB, Synology-DSM")
 	FirstSeen   time.Time `json:"first_seen"`
 	LastSeen    time.Time `json:"last_seen"`
 	Status      string    `json:"status"` // "online", "offline"
@@ -32,7 +33,7 @@ type Alert struct {
 // ScanHistory registra el historial de ejecuciones de escaneo.
 type ScanHistory struct {
 	ID           int64     `json:"id"`
-	ScanType     string    `json:"scan_type"` // "arp", "snmp", "ble", "all"
+	ScanType     string    `json:"scan_type"` // "arp", "snmp", "ble", "iot", "all"
 	StartedAt    time.Time `json:"started_at"`
 	FinishedAt   time.Time `json:"finished_at"`
 	DevicesFound int       `json:"devices_found"`
@@ -42,19 +43,21 @@ type ScanHistory struct {
 
 // Stats contiene las métricas para el dashboard de ciberseguridad.
 type Stats struct {
-	TotalDevices    int    `json:"total_devices"`
-	OnlineDevices   int    `json:"online_devices"`
-	SNMPDevices     int    `json:"snmp_devices"`
-	BLEDevices      int    `json:"ble_devices"`
-	TotalAlerts     int    `json:"total_alerts"`
-	PendingAlerts   int    `json:"pending_alerts"`
-	CriticalAlerts  int    `json:"critical_alerts"`
-	LastScanTime    string `json:"last_scan_time"`
+	TotalDevices     int    `json:"total_devices"`
+	OnlineDevices    int    `json:"online_devices"`
+	SNMPDevices      int    `json:"snmp_devices"`
+	BLEDevices       int    `json:"ble_devices"`
+	CameraDevices    int    `json:"camera_devices"`
+	NASDevices       int    `json:"nas_devices"`
+	TotalAlerts      int    `json:"total_alerts"`
+	PendingAlerts    int    `json:"pending_alerts"`
+	CriticalAlerts   int    `json:"critical_alerts"`
+	LastScanTime     string `json:"last_scan_time"`
 	NetworkInterface string `json:"network_interface"`
 }
 
 // ScanRequest es la carga útil para invocar un escaneo manual vía API.
 type ScanRequest struct {
-	ScanType string `json:"scan_type"` // "arp", "snmp", "ble", "all"
+	ScanType string `json:"scan_type"` // "arp", "snmp", "ble", "iot", "all"
 	Subnet   string `json:"subnet"`    // Opcional, ej: "192.168.1.0/24"
 }

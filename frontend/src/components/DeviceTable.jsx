@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Search, Wifi, Server, Bluetooth, Radio } from './Icons'
+import { Search, Wifi, Server, Bluetooth, Radio, Camera, HardDrive } from './Icons'
 
 export default function DeviceTable({ devices, loading }) {
   const [filterType, setFilterType] = useState('ALL')
@@ -15,12 +15,15 @@ export default function DeviceTable({ devices, loading }) {
       (dev.ip && dev.ip.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (dev.mac && dev.mac.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (dev.hostname && dev.hostname.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (dev.vendor && dev.vendor.toLowerCase().includes(searchTerm.toLowerCase()))
+      (dev.vendor && dev.vendor.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (dev.services && dev.services.toLowerCase().includes(searchTerm.toLowerCase()))
 
     return matchesType && matchesSearch
   })
 
   const getBadgeClass = (type, snmp) => {
+    if (type === 'Camera') return "badge badge-camera"
+    if (type === 'NAS') return "badge badge-nas"
     if (snmp) return "badge badge-snmp"
     switch (type) {
       case 'BLE': return "badge badge-ble"
@@ -30,6 +33,8 @@ export default function DeviceTable({ devices, loading }) {
   }
 
   const getTypeIcon = (type, snmp) => {
+    if (type === 'Camera') return <Camera size={12} />
+    if (type === 'NAS') return <HardDrive size={12} />
     if (snmp) return <Server size={12} />
     if (type === 'BLE') return <Bluetooth size={12} />
     if (type === 'WiFi') return <Wifi size={12} />
@@ -62,7 +67,7 @@ export default function DeviceTable({ devices, loading }) {
             </span>
             <input
               type="text"
-              placeholder="Buscar IP, MAC, Hostname..."
+              placeholder="Buscar IP, MAC, NAS, RTSP..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -73,21 +78,29 @@ export default function DeviceTable({ devices, loading }) {
                 color: 'var(--text-main)',
                 fontSize: '0.8rem',
                 outline: 'none',
-                width: '220px'
+                width: '230px'
               }}
             />
           </div>
 
           {/* Filtros de Pestaña */}
-          <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            {['ALL', 'Ethernet', 'WiFi', 'SNMP', 'BLE'].map((tab) => (
+          <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '2px' }}>
+            {[
+              { id: 'ALL', label: 'Todos' },
+              { id: 'Camera', label: '📷 Cámaras' },
+              { id: 'NAS', label: '💾 NAS' },
+              { id: 'SNMP', label: 'SNMP' },
+              { id: 'BLE', label: 'BLE' },
+              { id: 'WiFi', label: 'WiFi' },
+              { id: 'Ethernet', label: 'Ethernet' }
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setFilterType(tab)}
+                key={tab.id}
+                onClick={() => setFilterType(tab.id)}
                 style={{
-                  background: filterType === tab ? 'var(--accent-cyan-glow)' : 'transparent',
-                  color: filterType === tab ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  border: filterType === tab ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent',
+                  background: filterType === tab.id ? 'var(--accent-cyan-glow)' : 'transparent',
+                  color: filterType === tab.id ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                  border: filterType === tab.id ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent',
                   borderRadius: '6px',
                   padding: '0.35rem 0.65rem',
                   fontSize: '0.75rem',
@@ -96,7 +109,7 @@ export default function DeviceTable({ devices, loading }) {
                   transition: 'all 0.15s ease'
                 }}
               >
-                {tab === 'ALL' ? 'Todos' : tab}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -112,7 +125,7 @@ export default function DeviceTable({ devices, loading }) {
               <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Dirección MAC</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Fabricante (OUI)</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Tipo</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Detalles / Señal</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Servicios / Telemetría</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Estado</th>
               <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Último Visto</th>
             </tr>
@@ -152,16 +165,20 @@ export default function DeviceTable({ devices, loading }) {
                   <td style={{ padding: '0.75rem 1rem' }}>
                     <span className={getBadgeClass(dev.device_type, dev.snmp_enabled)}>
                       {getTypeIcon(dev.device_type, dev.snmp_enabled)}
-                      {dev.snmp_enabled ? 'SNMP' : dev.device_type}
+                      {dev.device_type === 'Camera' ? 'Cámara' : dev.device_type}
                     </span>
                   </td>
                   <td style={{ padding: '0.75rem 1rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-                    {dev.device_type === 'BLE' && dev.rssi ? (
+                    {dev.services ? (
+                      <span style={{ color: 'var(--accent-cyan)', fontWeight: '500' }}>
+                        {dev.services}
+                      </span>
+                    ) : dev.device_type === 'BLE' && dev.rssi ? (
                       <span className="font-mono" style={{ color: dev.rssi > -65 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
                         RSSI: {dev.rssi} dBm
                       </span>
                     ) : (
-                      dev.os_info || 'Protocolo ARP estándar'
+                      dev.os_info || 'Protocolo estándar'
                     )}
                   </td>
                   <td style={{ padding: '0.75rem 1rem' }}>

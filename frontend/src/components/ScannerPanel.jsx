@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { RefreshCw, Wifi, Server, Bluetooth, Activity } from './Icons'
+import { RefreshCw, Wifi, Server, Bluetooth, Activity, Camera } from './Icons'
 
 export default function ScannerPanel({ onTriggerScan, isScanning }) {
   const [activeType, setActiveType] = useState(null)
@@ -16,10 +16,10 @@ export default function ScannerPanel({ onTriggerScan, isScanning }) {
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={18} color="var(--accent-cyan)" />
-            Centro de Control de Escaneo
+            Centro de Control de Escaneo & Rastreo
           </h2>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Inspección activa de paquetes ARP, sondeo de OIDs SNMP e intercepción de señales BLE
+            Inspección activa de red: ARP LAN, sondeo SNMP, radar BLE, cámaras IP (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)
           </p>
         </div>
 
@@ -52,6 +52,16 @@ export default function ScannerPanel({ onTriggerScan, isScanning }) {
           >
             <Bluetooth size={15} color="var(--accent-emerald)" />
             <span>Radar BLE</span>
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => handleScan('iot')}
+            disabled={isScanning}
+            title="Sondear cámaras de vigilancia (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)"
+          >
+            <Camera size={15} color="var(--accent-rose)" />
+            <span>Rastrear NAS & Cams</span>
           </button>
 
           <button

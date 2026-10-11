@@ -19,7 +19,6 @@ type Database struct {
 }
 
 func InitDB(dbPath string) (*Database, error) {
-	// Asegurar existencia del directorio
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("error al crear directorio para la base de datos: %w", err)
@@ -35,7 +34,6 @@ func InitDB(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("error en la migración de tablas: %w", err)
 	}
 
-	// Cargar datos demostrativos iniciales si la base de datos está vacía
 	_ = d.seedInitialData()
 
 	return d, nil
@@ -55,6 +53,7 @@ func (d *Database) migrate() error {
 		vendor TEXT,
 		device_type TEXT,
 		os_info TEXT,
+		services TEXT DEFAULT '',
 		first_seen DATETIME,
 		last_seen DATETIME,
 		status TEXT,
@@ -89,8 +88,14 @@ func (d *Database) migrate() error {
 	);
 	`
 
-	_, err := d.db.Exec(schema)
-	return err
+	if _, err := d.db.Exec(schema); err != nil {
+		return err
+	}
+
+	// Migración retrocompatible por si la tabla ya existía sin la columna services
+	_, _ = d.db.Exec("ALTER TABLE devices ADD COLUMN services TEXT DEFAULT ''")
+
+	return nil
 }
 
 func (d *Database) seedInitialData() error {
@@ -108,18 +113,46 @@ func (d *Database) seedInitialData() error {
 			Vendor:      "Cisco Systems",
 			DeviceType:  "SNMP",
 			OSInfo:      "Cisco IOS 15.2(4)M",
+			Services:    "SNMP (161)",
 			FirstSeen:   now.Add(-24 * time.Hour),
 			LastSeen:    now,
 			Status:      "online",
 			SNMPEnabled: true,
 		},
 		{
+			MAC:         "44:19:B6:88:77:66",
+			IP:          "192.168.1.120",
+			Hostname:    "cctv-hikvision-garage",
+			Vendor:      "Hikvision Digital",
+			DeviceType:  "Camera",
+			OSInfo:      "Hikvision IPCam Firmware v5.7",
+			Services:    "RTSP-Stream (554), ONVIF (8000)",
+			FirstSeen:   now.Add(-18 * time.Hour),
+			LastSeen:    now,
+			Status:      "online",
+			SNMPEnabled: false,
+		},
+		{
+			MAC:         "00:11:32:88:99:AA",
+			IP:          "192.168.1.50",
+			Hostname:    "synology-nas-storage",
+			Vendor:      "Synology Inc.",
+			DeviceType:  "NAS",
+			OSInfo:      "Synology DSM 7.2.1 Linux",
+			Services:    "SMB/CIFS (445), Synology-DSM (5000)",
+			FirstSeen:   now.Add(-20 * time.Hour),
+			LastSeen:    now,
+			Status:      "online",
+			SNMPEnabled: false,
+		},
+		{
 			MAC:         "DC:A6:32:11:88:99",
 			IP:          "192.168.1.105",
 			Hostname:    "security-cam-front",
 			Vendor:      "Raspberry Pi Foundation",
-			DeviceType:  "Ethernet",
-			OSInfo:      "Linux 6.1.0-rpi",
+			DeviceType:  "Camera",
+			OSInfo:      "MotionEyeOS RTSP",
+			Services:    "RTSP-Stream (554)",
 			FirstSeen:   now.Add(-12 * time.Hour),
 			LastSeen:    now,
 			Status:      "online",
@@ -132,6 +165,7 @@ func (d *Database) seedInitialData() error {
 			Vendor:      "Espressif Systems",
 			DeviceType:  "WiFi",
 			OSInfo:      "ESP32 FreeRTOS",
+			Services:    "MQTT (1883)",
 			FirstSeen:   now.Add(-6 * time.Hour),
 			LastSeen:    now,
 			Status:      "online",
@@ -140,10 +174,11 @@ func (d *Database) seedInitialData() error {
 		{
 			MAC:         "AC:DE:48:FF:99:00",
 			IP:          "0.0.0.0",
-			Hostname:    "Unknown-BLE-Beacon",
+			Hostname:    "Apple AirTag (Beacon)",
 			Vendor:      "Apple Inc. (iBeacon)",
 			DeviceType:  "BLE",
 			OSInfo:      "BLE v5.0 Proximity",
+			Services:    "Bluetooth LE Adv",
 			FirstSeen:   now.Add(-30 * time.Minute),
 			LastSeen:    now,
 			Status:      "online",
@@ -159,17 +194,24 @@ func (d *Database) seedInitialData() error {
 	initialAlerts := []models.Alert{
 		{
 			Severity:     "warning",
-			Title:        "Puerto SNMP público detectado",
-			Description:  "El dispositivo gateway-router.local (192.168.1.1) responde a consultas SNMP con la comunidad 'public'. Se recomienda cambiar o deshabilitar v1/v2c.",
-			Timestamp:    now.Add(-2 * time.Hour),
+			Title:        "Flujo de Vídeo RTSP Abierto en 192.168.1.120",
+			Description:  "Cámara IP cctv-hikvision-garage tiene el puerto de streaming RTSP 554 abierto en la LAN.",
+			Timestamp:    now.Add(-1 * time.Hour),
 			Acknowledged: false,
 		},
 		{
-			Severity:     "info",
-			Title:        "Nuevo dispositivo detectado en LAN",
-			Description:  "Se detectó un dispositivo Espressif (MAC F4:34:F0:77:A1:B2) con IP 192.168.1.189 mediante barrido ARP.",
-			Timestamp:    now.Add(-4 * time.Hour),
-			Acknowledged: true,
+			Severity:     "warning",
+			Title:        "Panel NAS en HTTP no cifrado en 192.168.1.50",
+			Description:  "El almacenamiento NAS synology-nas-storage expone el panel DSM en HTTP 5000. Se recomienda forzar HTTPS (5001).",
+			Timestamp:    now.Add(-3 * time.Hour),
+			Acknowledged: false,
+		},
+		{
+			Severity:     "warning",
+			Title:        "Puerto SNMP público detectado",
+			Description:  "El dispositivo gateway-router.local (192.168.1.1) responde a consultas SNMP con la comunidad 'public'.",
+			Timestamp:    now.Add(-2 * time.Hour),
+			Acknowledged: false,
 		},
 	}
 
@@ -191,7 +233,6 @@ func (d *Database) UpsertDevice(dev *models.Device) (bool, error) {
 
 	now := time.Now()
 	if err == sql.ErrNoRows {
-		// Nuevo dispositivo
 		dev.FirstSeen = now
 		dev.LastSeen = now
 		if dev.Status == "" {
@@ -199,9 +240,9 @@ func (d *Database) UpsertDevice(dev *models.Device) (bool, error) {
 		}
 
 		res, err := d.db.Exec(`
-			INSERT INTO devices (mac, ip, hostname, vendor, device_type, os_info, first_seen, last_seen, status, rssi, snmp_enabled)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		`, dev.MAC, dev.IP, dev.Hostname, dev.Vendor, dev.DeviceType, dev.OSInfo, dev.FirstSeen, dev.LastSeen, dev.Status, dev.RSSI, dev.SNMPEnabled)
+			INSERT INTO devices (mac, ip, hostname, vendor, device_type, os_info, services, first_seen, last_seen, status, rssi, snmp_enabled)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, dev.MAC, dev.IP, dev.Hostname, dev.Vendor, dev.DeviceType, dev.OSInfo, dev.Services, dev.FirstSeen, dev.LastSeen, dev.Status, dev.RSSI, dev.SNMPEnabled)
 		if err != nil {
 			return false, err
 		}
@@ -213,11 +254,9 @@ func (d *Database) UpsertDevice(dev *models.Device) (bool, error) {
 		return false, err
 	}
 
-	// Dispositivo existente: actualizar últimos datos conocidos
 	dev.ID = existingID
 	dev.LastSeen = now
 
-	// Preservar datos si no vienen informados en la actualización
 	_, err = d.db.Exec(`
 		UPDATE devices SET
 			ip = CASE WHEN ? != '' THEN ? ELSE ip END,
@@ -225,12 +264,13 @@ func (d *Database) UpsertDevice(dev *models.Device) (bool, error) {
 			vendor = CASE WHEN ? != '' THEN ? ELSE vendor END,
 			device_type = CASE WHEN ? != '' THEN ? ELSE device_type END,
 			os_info = CASE WHEN ? != '' THEN ? ELSE os_info END,
+			services = CASE WHEN ? != '' THEN ? ELSE services END,
 			last_seen = ?,
 			status = 'online',
 			rssi = CASE WHEN ? != 0 THEN ? ELSE rssi END,
 			snmp_enabled = CASE WHEN ? THEN 1 ELSE snmp_enabled END
 		WHERE id = ?
-	`, dev.IP, dev.IP, dev.Hostname, dev.Hostname, dev.Vendor, dev.Vendor, dev.DeviceType, dev.DeviceType, dev.OSInfo, dev.OSInfo, now, dev.RSSI, dev.RSSI, dev.SNMPEnabled, existingID)
+	`, dev.IP, dev.IP, dev.Hostname, dev.Hostname, dev.Vendor, dev.Vendor, dev.DeviceType, dev.DeviceType, dev.OSInfo, dev.OSInfo, dev.Services, dev.Services, now, dev.RSSI, dev.RSSI, dev.SNMPEnabled, existingID)
 
 	return false, err
 }
@@ -239,7 +279,7 @@ func (d *Database) GetDevices(deviceType, status string) ([]models.Device, error
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	query := "SELECT id, mac, ip, hostname, vendor, device_type, os_info, first_seen, last_seen, status, rssi, snmp_enabled FROM devices WHERE 1=1"
+	query := "SELECT id, mac, ip, hostname, vendor, device_type, os_info, services, first_seen, last_seen, status, rssi, snmp_enabled FROM devices WHERE 1=1"
 	var args []interface{}
 
 	if deviceType != "" {
@@ -265,7 +305,7 @@ func (d *Database) GetDevices(deviceType, status string) ([]models.Device, error
 		var fs, ls string
 		if err := rows.Scan(
 			&dev.ID, &dev.MAC, &dev.IP, &dev.Hostname, &dev.Vendor,
-			&dev.DeviceType, &dev.OSInfo, &fs, &ls, &dev.Status,
+			&dev.DeviceType, &dev.OSInfo, &dev.Services, &fs, &ls, &dev.Status,
 			&dev.RSSI, &dev.SNMPEnabled,
 		); err != nil {
 			return nil, err
@@ -363,6 +403,8 @@ func (d *Database) GetStats() (*models.Stats, error) {
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE status = 'online'").Scan(&stats.OnlineDevices)
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE snmp_enabled = 1").Scan(&stats.SNMPDevices)
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'BLE'").Scan(&stats.BLEDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'Camera'").Scan(&stats.CameraDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'NAS'").Scan(&stats.NASDevices)
 
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM alerts").Scan(&stats.TotalAlerts)
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM alerts WHERE acknowledged = 0").Scan(&stats.PendingAlerts)

@@ -181,6 +181,18 @@ body {
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.badge-camera {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.badge-nas {
+  background: rgba(45, 212, 191, 0.15);
+  color: #2dd4bf;
+  border: 1px solid rgba(45, 212, 191, 0.35);
+}
+
 /* Severity styles */
 .badge-severity-danger {
   background: rgba(244, 63, 94, 0.2);

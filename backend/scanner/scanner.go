@@ -136,6 +136,35 @@ func (e *Engine) RunScan(scanType string) (*models.ScanHistory, error) {
 		detailsLog = append(detailsLog, fmt.Sprintf("BLE: %d balizas detectadas", len(bleDevices)))
 	}
 
+	// 4. Escaneo y Clasificación de Cámaras IP y Almacenamiento NAS (RTSP, ONVIF, SMB, DSM)
+	if scanType == "iot" || scanType == "all" || scanType == "cams_nas" {
+		allOnline, err := e.database.GetDevices("", "online")
+		if err == nil && len(allOnline) > 0 {
+			iotResults := ExecuteIoTScan(allOnline)
+			var camCount, nasCount int
+			for _, d := range allOnline {
+				if res, ok := iotResults[d.ID]; ok {
+					if res.IsCamera {
+						d.DeviceType = "Camera"
+						camCount++
+					} else if res.IsNAS {
+						d.DeviceType = "NAS"
+						nasCount++
+					}
+					if res.Details != "" {
+						d.Services = res.Details
+					}
+					_, _ = e.database.UpsertDevice(&d)
+
+					for _, riskAlert := range res.RiskAlerts {
+						_ = e.database.CreateAlert(&riskAlert)
+					}
+				}
+			}
+			detailsLog = append(detailsLog, fmt.Sprintf("IoT: %d cámaras y %d servidores NAS clasificados", camCount, nasCount))
+		}
+	}
+
 	history.FinishedAt = time.Now()
 	history.DevicesFound = totalFound
 	history.Status = "completed"
