@@ -9,15 +9,23 @@ Write-Host "   Autor: cast0rtech" -ForegroundColor DarkCyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$useDocker = $false
-
-# Comprobar si Docker está disponible
-$hasDocker = Get-Command docker -ErrorAction SilentlyContinue
-
-if ($args -contains "--docker" -or -not (Get-Command go -ErrorAction SilentlyContinue)) {
-    if ($hasDocker) {
-        $useDocker = $true
+# Auto-detectar ruta de Go si se acaba de instalar y aún no está en PATH
+if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
+    if (Test-Path "C:\Program Files\Go\bin\go.exe") {
+        $env:PATH = "C:\Program Files\Go\bin;" + $env:PATH
+        Write-Host "[✓] Go detectado en: C:\Program Files\Go\bin" -ForegroundColor Green
+    } elseif (Test-Path "C:\Go\bin\go.exe") {
+        $env:PATH = "C:\Go\bin;" + $env:PATH
+        Write-Host "[✓] Go detectado en: C:\Go\bin" -ForegroundColor Green
     }
+}
+
+$useDocker = $false
+$hasDocker = Get-Command docker -ErrorAction SilentlyContinue
+$hasGo = Get-Command go -ErrorAction SilentlyContinue
+
+if ($args -contains "--docker" -or (-not $hasGo -and $hasDocker)) {
+    $useDocker = $true
 }
 
 if ($useDocker) {
@@ -31,7 +39,11 @@ if ($useDocker) {
         exit 0
     } else {
         Write-Host "[!] Error iniciando contenedor con Docker. Verifica que Docker Desktop esté en ejecución." -ForegroundColor Red
-        exit 1
+        if ($hasGo) {
+            Write-Host "[*] Alternando automáticamente al modo nativo con Go..." -ForegroundColor Yellow
+        } else {
+            exit 1
+        }
     }
 }
 
@@ -42,15 +54,15 @@ npm install
 npm run build
 Set-Location ..
 
-Write-Host "[2/3] Verificando Go y backend..." -ForegroundColor Yellow
+Write-Host "[2/3] Compilando el backend en Go..." -ForegroundColor Yellow
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    Write-Host "[!] Go no está instalado en el sistema para compilación nativa." -ForegroundColor Yellow
-    Write-Host "Por favor inicia Docker Desktop y ejecuta: .\install.ps1 --docker" -ForegroundColor Cyan
+    Write-Host "[X] Go no se encuentra en el PATH. Reinicia tu terminal o instala Go: https://go.dev/dl/" -ForegroundColor Red
     exit 1
 }
 
 New-Item -ItemType Directory -Force -Path "bin" | Out-Null
 Set-Location backend
+go mod tidy
 go build -ldflags="-s -w" -o ..\bin\cyberguru.exe .
 Set-Location ..
 

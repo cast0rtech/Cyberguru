@@ -20,21 +20,26 @@ echo "\____/\__, /_.___/\___/_/   \__, /\__,_/_/   \__,_/   "
 echo "     /____/                /____/                     "
 echo -e "   Cyberguru Local Installer — by cast0rtech${NC}\n"
 
+# Auto-detectar Go si está en rutas habituales
+if ! command -v go &> /dev/null; then
+    if [ -d "/usr/local/go/bin" ]; then
+        export PATH="/usr/local/go/bin:$PATH"
+    fi
+fi
+
 # 1. Comprobar si se desea instalar con Docker o Nativo
 MODE="native"
-if ! command -v go &> /dev/null || ! command -v npm &> /dev/null; then
+if [ "$1" == "--docker" ]; then
+    MODE="docker"
+elif ! command -v go &> /dev/null || ! command -v npm &> /dev/null; then
     if command -v docker &> /dev/null; then
-        echo -e "${YELLOW}[!] Go o Node.js no están instalados. Se usará el modo Docker.${NC}"
+        echo -e "${YELLOW}[!] Go o Node.js no están instalados. Usando modo Docker.${NC}"
         MODE="docker"
     else
         echo -e "${RED}[X] Error: Se requiere Go (1.22+) y Node.js (20+), o Docker Engine para ejecutar Cyberguru.${NC}"
         echo "Instala Go y Node.js, o instala Docker: https://docs.docker.com/engine/install/"
         exit 1
     fi
-fi
-
-if [ "$1" == "--docker" ]; then
-    MODE="docker"
 fi
 
 if [ "$MODE" == "docker" ]; then
@@ -56,6 +61,8 @@ cd ..
 echo -e "${CYAN}[2/3] Compilando el backend en Go...${NC}"
 cd backend
 mkdir -p data
+mkdir -p ../bin
+go mod tidy
 go build -ldflags="-s -w" -o ../bin/cyberguru .
 cd ..
 
@@ -68,7 +75,6 @@ export PORT=8080
 export DB_PATH="./backend/data/cyberguru.db"
 export FRONTEND_DIR="./frontend/dist"
 
-# En Linux se recomienda ejecutar con permisos para sockets crudos (ARP)
 if [ "$EUID" -ne 0 ]; then
     echo -e "${YELLOW}[Nota] Para escaneo de paquetes crudos (ARP en interfaces físicas) se recomienda ejecutar con sudo o asignar caps:${NC}"
     echo "  sudo setcap cap_net_raw,cap_net_admin=eip ./bin/cyberguru"
