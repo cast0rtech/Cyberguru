@@ -1,369 +1,192 @@
-# 📘 Guía de Desarrollo — Cyberguru
+# 📘 Guía Técnica y de Desarrollo — Cyberguru
 
 **Autor:** `cast0rtech`  
 **Versión:** 1.0.0  
 **Proyecto:** Cyberguru Security Suite  
 
-Guía técnica paso a paso para desarrollar, extender, depurar y mantener la plataforma de ciberseguridad **Cyberguru**.
+Guía completa para desarrollo, arquitectura de comprobación activa, base de datos para estadísticas y despliegue.
 
 ---
 
-## 📋 Índice
-
-1. [Preparación del entorno](#1-preparación-del-entorno)
-2. [Estructura del proyecto](#2-estructura-del-proyecto)
-3. [Configuración de Docker](#3-configuración-de-docker)
-4. [Backend (Go)](#4-backend-go)
-5. [Frontend (React + Vite)](#5-frontend-react--vite)
-6. [Base de datos (SQLite)](#6-base-de-datos-sqlite)
-7. [Sensores y escaneo (ARP, SNMP, BLE)](#7-sensores-y-escaneo-arp-snmp-ble)
-8. [Testing y verificación](#8-testing-y-verificación)
-9. [Despliegue y producción](#9-despliegue-y-producción)
-10. [Troubleshooting y resolución de problemas](#10-troubleshooting-y-resolución-de-problemas)
+## 🌐 Índice / Table of Contents
+1. [🇪🇸 Guía en Español](#-guía-en-español)
+2. [🇬🇧 English Guide](#-english-guide)
 
 ---
 
-## 1. Preparación del entorno
+# 🇪🇸 Guía en Español
 
-### 1.1 Linux (Entorno de producción y pruebas recomendado)
+## 1. Arquitectura de Comprobación Activa de Dispositivos Reales
 
-Linux es el sistema óptimo debido a que `network_mode: host` interactúa directamente con la pila del kernel para la captura ARP y los sockets raw.
+A diferencia de escáneres convencionales que listan entradas obsoletas de la caché ARP del sistema operativo o insertan dispositivos simulados, Cyberguru implementa un pipeline estricto de comprobación previa antes de admitir cualquier equipo en la base de datos:
 
-```bash
-# 1. Actualizar repositorios e instalar paquetes básicos
-sudo apt update && sudo apt install -y curl git iproute2 net-tools bluez
-
-# 2. Instalar Docker Engine oficial
-curl -fsSL https://get.docker.com | sh
-
-# 3. Asignar permisos al usuario actual para operar sin sudo
-sudo usermod -aG docker $USER
-newgrp docker
-
-# 4. Instalar Docker Compose Plugin
-sudo apt install -y docker-compose-plugin
-
-# 5. (Opcional para desarrollo local sin Docker)
-sudo apt install -y golang-go nodejs npm
-```
-
-### 1.2 Windows (Desarrollo con Docker Desktop & WSL2)
-
-1. Instalar **Docker Desktop para Windows** con el backend de **WSL2** activado.
-2. Asegurarse de tener habilitada la característica de *Host Networking* en la configuración de Docker Desktop si se desea acceso directo a interfaces LAN.
-3. Node.js (v20+) y npm (v10+) instalados para depurar el frontend localmente.
-
-### 1.3 Herramientas de Desarrollo Opcionales
-- **Go:** Versión `1.22+` (recomendado para desarrollo nativo).
-- **Node.js:** Versión `20 LTS` o superior.
-- **SQLite CLI:** Para inspección manual del archivo de base de datos (`sqlite3`).
-
----
-
-## 2. Estructura del proyecto
-
-El repositorio está organizado de forma desacoplada para facilitar el desarrollo independiente de cada componente:
+### 1.1 Flujo del Algoritmo de Verificación (`backend/scanner/verify.go`)
 
 ```text
-Cyberguru/
-├── Dockerfile                  # Construcción multi-etapa optimizada (Node -> Go -> Alpine)
-├── docker-compose.yml          # Configuración con network_mode: host y volúmenes
-├── .dockerignore               # Filtro de archivos para optimizar el contexto de Docker
-├── README.md                   # Resumen del proyecto y arquitectura de alto nivel
-├── GUIA.md                     # Guía técnica completa para desarrolladores
-│
-├── backend/                    # Core del agente de ciberseguridad (Go 1.22)
-│   ├── go.mod                  # Declaración del módulo y dependencias
-│   ├── go.sum                  # Checksums de paquetes Go
-│   ├── main.go                 # Punto de entrada, banner, servidor HTTP y graceful shutdown
-│   ├── config/
-│   │   └── config.go           # Parámetros configurables vía variables de entorno
-│   ├── models/
-│   │   └── models.go           # Estructuras de datos (Device, Alert, ScanHistory, Stats)
-│   ├── db/
-│   │   └── database.go         # Conexión, migraciones automáticas y queries SQLite
-│   ├── scanner/
-│   │   ├── scanner.go          # Orquestador del ciclo de escaneo concurrente
-│   │   ├── arp.go              # Resolución de subred, barrido ARP y lookup OUI
-│   │   ├── snmp.go             # Sondeo UDP 161 (SNMP v1/v2c) para switches/routers
-│   │   └── ble.go              # Detección de balizas Bluetooth Low Energy (BlueZ/HCI)
-│   └── api/
-│       └── router.go           # Rutas REST (/api/*) y FileServer de la SPA
-│
-└── frontend/                   # Dashboard moderno estilo SOC (React 18 + Vite)
-    ├── package.json            # Scripts de construcción y dependencias npm
-    ├── vite.config.js          # Configuración de empaquetado y proxy hacia :8080
-    ├── index.html              # Plantilla HTML con tipografía Inter y JetBrains Mono
-    └── src/
-        ├── main.jsx            # Punto de montaje en el DOM
-        ├── App.jsx             # Vista principal, sincronización y polling
-        ├── index.css           # Tokens de diseño, modo oscuro y animaciones neón
-        └── components/
-            ├── Icons.jsx       # Iconografía SVG pura (sin dependencias externas)
-            ├── Header.jsx      # Indicadores de estado de red y reloj en vivo
-            ├── MetricCard.jsx  # Indicadores clave tipo glassmorphism
-            ├── ScannerPanel.jsx# Disparadores manuales de escaneo
-            ├── DeviceTable.jsx # Inventario con buscador en tiempo real y filtros
-            └── AlertFeed.jsx   # Gestor de incidentes con resolución de alertas
+[Candidato IP/MAC detectado]
+          │
+          ├──> 1. Filtro L2/L3: ¿Es Broadcast, Multicast o APIPA (169.254)?
+          │         └──> Sí: Descartar inmediatamente.
+          │
+          ├──> 2. Prueba ICMP Ping Nativa (Timeout 700ms)
+          │         └──> ¿Responde? -> Guardar RTT (ms) y marcar comprobado.
+          │
+          ├──> 3. Sondeo Concurrente de Sockets TCP (Timeout 350ms)
+          │         Puertos probados: 53 (DNS), 80/443 (Web), 445 (SMB), 135 (RPC),
+          │                           22 (SSH), 554 (RTSP), 5000 (DSM), 8080.
+          │         └──> Conexión establecida o RST (Connection Refused):
+          │              Confirma presencia real del host en la red.
+          │
+          ├──> 4. Comprobación por Tabla de Rutas del Sistema
+          │         └──> ¿Es la IP de la Puerta de Enlace (Default Gateway)?
+          │              Confirmar como equipo de enrutamiento del sistema.
+          │
+          └──> 5. Resolución de Hostname
+                    DNS reverso (net.LookupAddr) para obtener el nombre FQDN/NetBIOS.
 ```
+
+Si el dispositivo no responde a ninguna prueba activa y no es la puerta de enlace activa del sistema, es **descartado automáticamente** y no entra en la lista de equipos en línea.
 
 ---
 
-## 3. Configuración de Docker
+## 2. Base de Datos SQLite y Motor de Estadísticas
 
-### 3.1 Dockerfile Multi-Etapa
+El archivo SQLite se ubica en `./data/cyberguru.db` (en modo portable) o en el volumen Docker persistente.
 
-El archivo [Dockerfile](file:///c:/Users/castor/Desktop/Cyberguru/Dockerfile) divide la compilación en tres fases aisladas para garantizar una imagen de producción final de menos de **50 MB**:
+### 2.1 Tablas Principales (`backend/db/database.go`)
 
-1. **Etapa 1 (`frontend-builder`):**  
-   Utiliza `node:20-alpine`, instala dependencias con `npm install` y genera los artefactos estáticos optimizados mediante `npm run build` en `/app/frontend/dist`.
-2. **Etapa 2 (`backend-builder`):**  
-   Emplea `golang:1.22-alpine` para compilar el código de Go. Se utiliza la bandera `CGO_ENABLED=0` y `-ldflags="-s -w"` para generar un binario completamente estático, desprovisto de tablas de depuración y dependencias dinámicas.
-3. **Etapa 3 (`runtime`):**  
-   Basada en `alpine:3.20`. Solo incluye los paquetes de sistema esenciales (`ca-certificates`, `sqlite-libs`, `iproute2`, `net-tools`, `bluez`, `libpcap`). Copia el binario compilado y la carpeta de frontend generada.
+* **`devices`**:
+  * `mac` (TEXT UNIQUE): Dirección física normalizada IEEE 802.
+  * `ip` (TEXT): Dirección IPv4 verificada.
+  * `verified` (BOOLEAN): `1` para dispositivos confirmados con prueba de vida.
+  * `verification_method` (TEXT): Método exacto (`ICMP Ping (6ms)`, `TCP Probe`, etc.).
+  * `response_time_ms` (INTEGER): Latencia real en milisegundos.
+  * `is_gateway` (BOOLEAN): Bandera que distingue el router de red.
+  * `checks_passed` / `checks_failed` (INTEGER): Historial de fiabilidad.
+  * `last_verified_at` (DATETIME): Momento exacto de la última comprobación.
 
-### 3.2 docker-compose.yml y Permisos de Red
+* **`device_events`**:
+  Auditoría cronológica de eventos por equipo (`VERIFIED_ONLINE`, `OFFLINE`, `LATENCY_UPDATE`).
 
-El archivo [docker-compose.yml](file:///c:/Users/castor/Desktop/Cyberguru/docker-compose.yml) incluye los parámetros indispensables para operaciones de ciberseguridad:
+* **`network_stats_history`**:
+  Instantáneas temporales tomadas en cada escaneo para generar gráficas de tendencias:
+  * `total_devices`, `online_devices`, `verified_devices`
+  * `avg_latency_ms` (latencia media en ms)
+  * `gateways_count`, `snmp_count`, `iot_count`
 
-```yaml
-services:
-  cyberguru:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: cyberguru:latest
-    container_name: cyberguru
-    network_mode: host
-    restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    volumes:
-      - cyberguru_data:/app/data
-    environment:
-      - PORT=8080
-      - DB_PATH=/app/data/cyberguru.db
-      - FRONTEND_DIR=/app/frontend/dist
-      - SCAN_INTERVAL_MIN=5
-      - SIMULATE_BLE_IF_ABSENT=true
-
-volumes:
-  cyberguru_data:
-    driver: local
-```
-
-#### Aspectos Críticos:
-- **`network_mode: host`:** Elimina el aislamiento de red del contenedor. Esto permite que el backend envíe y reciba paquetes ARP broadcast en la LAN física del host. En este modo, no se utiliza la directiva `ports:`, ya que el puerto `8080` se abre directamente en la IP del host.
-- **`cap_add: [NET_ADMIN, NET_RAW]`:** Otorga privilegios a nivel de kernel para manipular interfaces y abrir raw sockets.
-- **Volumen `cyberguru_data`:** Garantiza que los registros históricos y las alertas en SQLite permanezcan intactos tras reiniciar el contenedor.
+### 2.2 Purga Automática de Datos Ficticios
+La función `PurgeMockDevices()` se ejecuta en el inicio del backend y vía `POST /api/cleanup-fake`, eliminando permanentemente cualquier MAC ficticia previa (`00:1A:2B...`, `44:19:B6...`, etc.) y registros huérfanos.
 
 ---
 
-## 4. Backend (Go)
+## 3. Internacionalización del Dashboard (i18n)
 
-### 4.1 Ciclo de Vida del Servidor
-En [backend/main.go](file:///c:/Users/castor/Desktop/Cyberguru/backend/main.go):
-1. **Inicialización:** Carga la configuración desde las variables de entorno mediante `config.Load()`.
-2. **Base de Datos:** Abre la base de datos SQLite y ejecuta migraciones iniciales.
-3. **Planificador:** Lanza el motor de escaneo periódico en una goroutine con `context.WithCancel`.
-4. **Servidor HTTP:** Escucha en `0.0.0.0:8080` con timeouts configurados.
-5. **Graceful Shutdown:** Captura `SIGINT` y `SIGTERM` para cerrar conexiones y flush de la base de datos en menos de 5 segundos.
-
-### 4.2 API REST
-
-Los endpoints definidos en [backend/api/router.go](file:///c:/Users/castor/Desktop/Cyberguru/backend/api/router.go) son:
-
-- `GET /api/health`: Estado general del agente, uptime y estado de escaneo activo.
-- `GET /api/stats`: Resumen cuantitativo para los paneles del dashboard.
-- `GET /api/devices`: Listado de dispositivos con filtros opcionales (`?type=SNMP&status=online`).
-- `GET /api/alerts`: Listado de alertas (`?pending=true` para mostrar solo no resueltas).
-- `POST /api/alerts/{id}/ack`: Marca una alerta como resuelta.
-- `POST /api/scan`: Inicia un escaneo bajo demanda. Acepta JSON:
-  ```json
-  { "scan_type": "all" } // Opciones: "arp", "snmp", "ble", "all"
-  ```
-- `GET /*`: Servidor de archivos estáticos que sirve la SPA de React con fallback a `index.html`.
+El frontend en React cuenta con un sistema de traducción centralizado en [`frontend/src/i18n.js`](file:///c:/Castor%20Programs/Cyberguru/frontend/src/i18n.js):
+* **Idiomas Soportados**: Español (`es`), Inglés (`en`), Alemán (`de`).
+* **Selector en Cabecera**: Botones de acceso rápido (`🇪🇸 ES`, `🇬🇧 EN`, `🇩🇪 DE`) con persistencia en `localStorage`.
+* **Traducción Integral**: Traduce métricas, panel de control, tablas de dispositivos, alertas y analíticas de base de datos.
 
 ---
 
-## 5. Frontend (React + Vite)
+## 4. Compilación y Despliegue en Windows
 
-### 5.1 Sistema de Diseño
-El dashboard utiliza un diseño oscuro inspirado en consolas SOC:
-- **Fondo:** `#070a12` con gradientes radiales sutiles y cuadrícula de seguridad.
-- **Paneles Glassmorphism:** Fondo translúcido `rgba(15, 23, 42, 0.75)` con desenfoque de fondo (`backdrop-filter: blur(12px)`) y bordes `#1e293b`.
-- **Acentos:**
-  - Cian neón (`#00f2fe`) para elementos primarios y tecnología activa.
-  - Esmeralda (`#10b981`) para estado online y balizas BLE.
-  - Ámbar (`#f59e0b`) para alertas de advertencia y servicios SNMP.
-  - Rosa/Rojo (`#f43f5e`) para alertas críticas y de peligro.
-- **Tipografía:** `Inter` para texto de interfaz y `JetBrains Mono` para direcciones IP, MAC y métricas.
-
-### 5.2 Desarrollo Local del Frontend
-Para trabajar en la interfaz con recarga rápida (HMR):
-```bash
-cd frontend
-npm install
-npm run dev
+### 4.1 Generación de Binarios Portables
+Para compilar tanto el frontend integrado como el binario Go independiente para Windows:
+```powershell
+.\build-windows.ps1
 ```
-La configuración de [frontend/vite.config.js](file:///c:/Users/castor/Desktop/Cyberguru/frontend/vite.config.js) reenviará automáticamente todas las peticiones a `/api` hacia `http://localhost:8080`.
+Este script genera automáticamente:
+1. `bin\Cyberguru.exe` (Binario único independiente con frontend embebido vía `go:embed`).
+2. `dist-windows\Cyberguru-Setup.exe` (Instalador universal en 1 clic).
+3. `dist-windows\Cyberguru-Portable\` (Carpeta lista para ejecutar desde memoria USB).
+4. `dist-windows\Cyberguru-v1.0.0-Windows-Portable.zip` (Archivo comprimido para distribución).
+
+---
+---
+
+# 🇬🇧 English Guide
+
+## 1. Real Device Active Verification Architecture
+
+Unlike standard network scanners that blindly ingest stale entries from operating system ARP caches or inject simulated demo devices, Cyberguru enforces a strict active verification pipeline before committing any endpoint into the database:
+
+### 1.1 Verification Algorithm Flow (`backend/scanner/verify.go`)
+
+```text
+[Discovered Candidate IP/MAC]
+          │
+          ├──> 1. L2/L3 Pre-Filter: Is it Broadcast, Multicast, or APIPA (169.254)?
+          │         └──> Yes: Drop immediately.
+          │
+          ├──> 2. Native ICMP Ping Probe (700ms timeout)
+          │         └──> Responsive? -> Record RTT latency (ms) and mark verified.
+          │
+          ├──> 3. Concurrent TCP Socket Probing (350ms timeout)
+          │         Tested ports: 53 (DNS), 80/443 (HTTP/S), 445 (SMB), 135 (RPC),
+          │                       22 (SSH), 554 (RTSP), 5000 (DSM), 8080 (Alt-Web).
+          │         └──> Connected or RST (Connection Refused):
+          │              Confirms physical presence of the target host.
+          │
+          ├──> 4. System Routing Table Check
+          │         └──> Is it the default gateway IP?
+          │              Confirm as active system gateway router.
+          │
+          └──> 5. Hostname Resolution
+                    Reverse DNS lookup (net.LookupAddr) for FQDN/NetBIOS resolution.
+```
+
+If an IP candidate fails all active verification checks and is not the active system default gateway, it is **discarded automatically** and will not be listed among online devices.
 
 ---
 
-## 6. Base de Datos (SQLite)
+## 2. SQLite Database & Statistical Engine
 
-### 6.1 Driver y Modo WAL
-Se utiliza el driver puro en Go `modernc.org/sqlite`. La conexión se inicializa con:
-```go
-conn, err := sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
-```
-- **Modo WAL (Write-Ahead Logging):** Permite lecturas y escrituras concurrentes sin bloqueos.
-- **Busy Timeout:** Evita errores de `database is locked` ante transacciones simultáneas del escáner y la API.
+The SQLite database file is stored in `./data/cyberguru.db` (portable mode) or in the persistent Docker volume.
 
-### 6.2 Esquema Relacional
+### 2.1 Schema Tables (`backend/db/database.go`)
 
-```sql
--- Dispositivos inventariados
-CREATE TABLE devices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    mac TEXT UNIQUE,
-    ip TEXT,
-    hostname TEXT,
-    vendor TEXT,
-    device_type TEXT, -- "Ethernet", "WiFi", "SNMP", "BLE"
-    os_info TEXT,
-    first_seen DATETIME,
-    last_seen DATETIME,
-    status TEXT,      -- "online", "offline"
-    rssi INTEGER DEFAULT 0,
-    snmp_enabled BOOLEAN DEFAULT 0
-);
+* **`devices`**:
+  * `mac` (TEXT UNIQUE): Normalized IEEE 802 hardware address.
+  * `ip` (TEXT): Verified IPv4 address.
+  * `verified` (BOOLEAN): `1` for endpoints confirmed via active reachability test.
+  * `verification_method` (TEXT): Exact method (`ICMP Ping (6ms)`, `TCP Probe`, etc.).
+  * `response_time_ms` (INTEGER): Real response time in milliseconds.
+  * `is_gateway` (BOOLEAN): Flag identifying the network default router.
+  * `checks_passed` / `checks_failed` (INTEGER): Liveness reliability counters.
+  * `last_verified_at` (DATETIME): Timestamp of the most recent verification.
 
--- Alertas de seguridad
-CREATE TABLE alerts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    device_id INTEGER,
-    severity TEXT,    -- "info", "warning", "danger"
-    title TEXT,
-    description TEXT,
-    timestamp DATETIME,
-    acknowledged BOOLEAN DEFAULT 0,
-    FOREIGN KEY(device_id) REFERENCES devices(id) ON DELETE CASCADE
-);
+* **`device_events`**:
+  Chronological audit trail for every endpoint (`VERIFIED_ONLINE`, `OFFLINE`, `LATENCY_UPDATE`).
 
--- Historial de ejecuciones de escaneo
-CREATE TABLE scan_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    scan_type TEXT,
-    started_at DATETIME,
-    finished_at DATETIME,
-    devices_found INTEGER,
-    status TEXT,
-    details TEXT
-);
-```
+* **`network_stats_history`**:
+  Periodic time-series snapshots recorded on each scan cycle to plot network health trends:
+  * `total_devices`, `online_devices`, `verified_devices`
+  * `avg_latency_ms` (average network latency in ms)
+  * `gateways_count`, `snmp_count`, `iot_count`
+
+### 2.2 Automated Mock & Ghost Data Purge
+The `PurgeMockDevices()` routine runs automatically on startup and on demand via `POST /api/cleanup-fake`, removing legacy mock MACs (`00:1A:2B...`, `44:19:B6...`, etc.) and unverified offline records.
 
 ---
 
-## 7. Sensores y Escaneo (ARP, SNMP, BLE)
+## 3. Multilingual Dashboard (i18n)
 
-### 7.1 Escaneo ARP ([backend/scanner/arp.go](file:///c:/Users/castor/Desktop/Cyberguru/backend/scanner/arp.go))
-1. **Detección de Interfaz y Subred:** Detecta la interfaz de red activa y su dirección IPv4 (ej. `192.168.1.100/24`).
-2. **Barrido de Provocación:** Emite paquetes UDP rápidos a través de 50 goroutines concurrentes hacia cada dirección del rango `/24` (`1` a `254`). Esto hace que el kernel de Linux emita peticiones de broadcast ARP para resolver las direcciones físicas.
-3. **Parseo de `/proc/net/arp`:** Lee las entradas del kernel para extraer IP, MAC e interfaz.
-4. **Lookup OUI:** Compara los primeros 3 octetos de la MAC contra una tabla de fabricantes conocidos (Cisco, Apple, Raspberry Pi, Espressif, Ubiquiti, etc.).
-5. **Detección de Nuevos Equipos:** Si una MAC no existía previamente en la base de datos, levanta una alerta informativa inmediata.
-
-### 7.2 Sondeo SNMP ([backend/scanner/snmp.go](file:///c:/Users/castor/Desktop/Cyberguru/backend/scanner/snmp.go))
-1. **Paquete ASN.1/BER Nativo:** Construye una petición `GetRequest` en SNMP v2c para consultar el OID `1.3.6.1.2.1.1.1.0` (`sysDescr`).
-2. **Sondeo UDP 161 Concurrente:** Envía la consulta a todas las IPs activas descubiertas con timeout estricto de 800 ms.
-3. **Alerta de Vulnerabilidad:** Si un switch, router o equipo responde a la comunidad por defecto `public`, se actualiza el dispositivo como `snmp_enabled = true` y se registra una alerta de severidad `warning`.
-
-### 7.3 Sensor de Proximidad BLE ([backend/scanner/ble.go](file:///c:/Users/castor/Desktop/Cyberguru/backend/scanner/ble.go))
-1. **Detección de Hardware:** Verifica la presencia de controladores Bluetooth en `/sys/class/bluetooth` o mediante `bluetoothctl`.
-2. **Intercepción de Balizas:** Lee dispositivos BLE y calcula el nivel de señal RSSI (en dBm).
-3. **Modo Simulado / Fallback:** Si el host no dispone de adaptador físico BLE (o se ejecuta en una máquina virtual sin passthrough USB), activa de forma transparente telemetría demostrativa para permitir evaluar la interfaz y las alertas sin interrumpir la ejecución.
+The React frontend features a centralized translation module in [`frontend/src/i18n.js`](file:///c:/Castor%20Programs/Cyberguru/frontend/src/i18n.js):
+* **Supported Languages**: Spanish (`es`), English (`en`), German (`de`).
+* **Header Switcher**: Quick-toggle pills (`🇪🇸 ES`, `🇬🇧 EN`, `🇩🇪 DE`) persisted in `localStorage`.
+* **Full Coverage**: Translates metric cards, scanner control panels, device inventory tables, alerts, and analytics dashboards.
 
 ---
 
-## 8. Testing y Verificación
+## 4. Windows Build & Packaging
 
-### 8.1 Verificación de Compilación del Frontend
-```bash
-cd frontend
-npm run build
+### 4.1 Automated Packaging
+To compile both the production React bundle and the standalone Go executable for Windows:
+```powershell
+.\build-windows.ps1
 ```
-Debe generar los archivos en `dist/` sin advertencias de sintaxis.
-
-### 8.2 Compilación del Backend en Go
-```bash
-cd backend
-go build -v -o cyberguru .
-```
-
-### 8.3 Verificación de la Construcción Docker
-```bash
-docker build -t cyberguru:test .
-```
-
----
-
-## 9. Despliegue y Producción
-
-### 9.1 Puesta en Marcha
-```bash
-# Iniciar en segundo plano
-docker-compose up --build -d
-
-# Visualizar logs del contenedor
-docker-compose logs -f cyberguru
-```
-
-### 9.2 Monitorización de Recursos
-```bash
-docker stats cyberguru
-```
-El consumo típico en reposo es de:
-- **CPU:** < 0.5%
-- **Memoria RAM:** ~20 MB a 35 MB
-
-### 9.3 Copias de Seguridad de la Base de Datos
-La base de datos SQLite reside en el volumen Docker `cyberguru_data`. Para hacer una copia de seguridad segura en caliente:
-```bash
-docker cp cyberguru:/app/data/cyberguru.db ./backup_cyberguru_$(date +%Y%m%d).db
-```
-
----
-
-## 10. Troubleshooting y Resolución de Problemas
-
-### Problema 1: `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`
-- **Causa:** El motor de Docker Desktop no se ha iniciado en Windows.
-- **Solución:** Abre la aplicación **Docker Desktop** desde el menú Inicio de Windows y espera hasta que el estado indique "Engine Running".
-
-### Problema 2: `network_mode: host` no descubre equipos en Windows/macOS
-- **Causa:** En entornos de escritorio virtualizados (Windows/macOS), Docker corre dentro de una máquina virtual (WSL2 o Hyper-V), por lo que `network_mode: host` accede a la red de la máquina virtual y no a la tarjeta física WiFi/Ethernet del host.
-- **Solución:** Para auditorías reales en LAN física, despliega Cyberguru en un sistema Linux nativo (o Raspberry Pi / servidor doméstico). Para desarrollo en Windows, el modo simulado de BLE y el escaneo de la subred de WSL2 funcionan de manera integrada.
-
-### Problema 3: Conflicto con el Puerto 8080
-- **Causa:** Otro proceso en el host ya está utilizando el puerto `8080`.
-- **Solución:** Modifica la variable `PORT` en [docker-compose.yml](file:///c:/Users/castor/Desktop/Cyberguru/docker-compose.yml):
-  ```yaml
-  environment:
-    - PORT=8090
-  ```
-
-### Problema 4: Error de permisos con Bluetooth en Linux
-- **Causa:** El contenedor no tiene acceso al socket de D-Bus de BlueZ.
-- **Solución:** Asegúrate de montar `/var/run/dbus` en el `docker-compose.yml`:
-  ```yaml
-  volumes:
-    - /var/run/dbus:/var/run/dbus:ro
-  ```
-
----
-
-## 👨‍💻 Autoría
-
-Desarrollado y mantenido por **`cast0rtech`** para la comunidad de ciberseguridad y administración de redes.
+This script creates:
+1. `bin\Cyberguru.exe` (Single standalone executable with embedded frontend using `go:embed`).
+2. `dist-windows\Cyberguru-Setup.exe` (1-click universal Windows installer).
+3. `dist-windows\Cyberguru-Portable\` (Ready-to-run folder for USB drives and workstations).
+4. `dist-windows\Cyberguru-v1.0.0-Windows-Portable.zip` (Compressed distribution archive).

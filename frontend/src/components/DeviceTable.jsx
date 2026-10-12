@@ -1,41 +1,56 @@
 import React, { useState } from 'react'
-import { Search, Wifi, Server, Bluetooth, Radio, Camera, HardDrive } from './Icons'
+import { Search, Wifi, Server, Bluetooth, Radio, Camera, HardDrive, Globe, Cpu, Smartphone, CheckCircle, RefreshCw, Zap } from './Icons'
 
-export default function DeviceTable({ devices, loading }) {
+export default function DeviceTable({ devices, loading, onVerifyDevice, verifyingDeviceId, t }) {
   const [filterType, setFilterType] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
+
+  const tbT = t?.table || {}
+  const tabNames = tbT.tabs || {}
 
   const filteredDevices = devices.filter(dev => {
     const matchesType = 
       filterType === 'ALL' ||
+      (filterType === 'Gateway' && (dev.is_gateway || dev.device_type === 'Gateway/Router')) ||
+      (filterType === 'Workstation' && (dev.device_type === 'Workstation/PC')) ||
+      (filterType === 'Camera' && dev.device_type === 'Camera') ||
+      (filterType === 'NAS' && dev.device_type === 'NAS') ||
       (filterType === 'SNMP' && dev.snmp_enabled) ||
-      (filterType === dev.device_type)
+      (filterType === 'BLE' && dev.device_type === 'BLE') ||
+      (filterType === 'WiFi' && dev.device_type === 'WiFi') ||
+      (filterType === 'Ethernet' && dev.device_type === 'Ethernet')
 
     const matchesSearch = 
       (dev.ip && dev.ip.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (dev.mac && dev.mac.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (dev.hostname && dev.hostname.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (dev.vendor && dev.vendor.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (dev.services && dev.services.toLowerCase().includes(searchTerm.toLowerCase()))
+      (dev.services && dev.services.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (dev.verification_method && dev.verification_method.toLowerCase().includes(searchTerm.toLowerCase()))
 
     return matchesType && matchesSearch
   })
 
-  const getBadgeClass = (type, snmp) => {
+  const getBadgeClass = (type, snmp, isGateway) => {
+    if (isGateway || type === 'Gateway/Router') return "badge badge-gateway"
     if (type === 'Camera') return "badge badge-camera"
     if (type === 'NAS') return "badge badge-nas"
     if (snmp) return "badge badge-snmp"
     switch (type) {
       case 'BLE': return "badge badge-ble"
       case 'WiFi': return "badge badge-wifi"
+      case 'Workstation/PC': return "badge badge-workstation"
       default: return "badge badge-ethernet"
     }
   }
 
-  const getTypeIcon = (type, snmp) => {
+  const getTypeIcon = (type, snmp, isGateway) => {
+    if (isGateway || type === 'Gateway/Router') return <Globe size={12} />
     if (type === 'Camera') return <Camera size={12} />
     if (type === 'NAS') return <HardDrive size={12} />
     if (snmp) return <Server size={12} />
+    if (type === 'Workstation/PC') return <Cpu size={12} />
+    if (type === 'Mobile') return <Smartphone size={12} />
     if (type === 'BLE') return <Bluetooth size={12} />
     if (type === 'WiFi') return <Wifi size={12} />
     return <Radio size={12} />
@@ -51,11 +66,28 @@ export default function DeviceTable({ devices, loading }) {
     <div className="glass-panel" style={{ padding: '1.25rem', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-main)' }}>
-            Inventario de Dispositivos Detectados
-          </h3>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Total mostrados: {filteredDevices.length} de {devices.length} activos
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-main)', margin: 0 }}>
+              {tbT.title || "Inventario de Dispositivos Reales Comprobados"}
+            </h3>
+            <span style={{
+              background: 'rgba(16, 185, 129, 0.15)',
+              color: 'var(--accent-emerald)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              fontSize: '0.65rem',
+              fontWeight: '700',
+              padding: '0.15rem 0.45rem',
+              borderRadius: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem'
+            }}>
+              <CheckCircle size={10} />
+              {tbT.badge_active || "VERIFICACIÓN ACTIVA"}
+            </span>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', margin: 0 }}>
+            {filteredDevices.length} {tbT.subtitle || "equipos confirmados mediante respuesta activa (ping / sockets / tabla ARP)."}
           </p>
         </div>
 
@@ -67,7 +99,7 @@ export default function DeviceTable({ devices, loading }) {
             </span>
             <input
               type="text"
-              placeholder="Buscar IP, MAC, NAS, RTSP..."
+              placeholder={tbT.search_placeholder || "Buscar IP, MAC, Fabricante..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -78,7 +110,7 @@ export default function DeviceTable({ devices, loading }) {
                 color: 'var(--text-main)',
                 fontSize: '0.8rem',
                 outline: 'none',
-                width: '230px'
+                width: '210px'
               }}
             />
           </div>
@@ -86,13 +118,15 @@ export default function DeviceTable({ devices, loading }) {
           {/* Filtros de Pestaña */}
           <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '2px' }}>
             {[
-              { id: 'ALL', label: 'Todos' },
-              { id: 'Camera', label: '📷 Cámaras' },
-              { id: 'NAS', label: '💾 NAS' },
-              { id: 'SNMP', label: 'SNMP' },
-              { id: 'BLE', label: 'BLE' },
-              { id: 'WiFi', label: 'WiFi' },
-              { id: 'Ethernet', label: 'Ethernet' }
+              { id: 'ALL', label: tabNames.all || 'Todos' },
+              { id: 'Gateway', label: tabNames.gateway || '🌐 Gateway' },
+              { id: 'Workstation', label: tabNames.workstation || '💻 PCs' },
+              { id: 'Camera', label: tabNames.camera || '📷 Cámaras' },
+              { id: 'NAS', label: tabNames.nas || '💾 NAS' },
+              { id: 'SNMP', label: tabNames.snmp || 'SNMP' },
+              { id: 'BLE', label: tabNames.ble || 'BLE' },
+              { id: 'WiFi', label: tabNames.wifi || 'WiFi' },
+              { id: 'Ethernet', label: tabNames.ethernet || 'Ethernet' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -102,7 +136,7 @@ export default function DeviceTable({ devices, loading }) {
                   color: filterType === tab.id ? 'var(--accent-cyan)' : 'var(--text-muted)',
                   border: filterType === tab.id ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent',
                   borderRadius: '6px',
-                  padding: '0.35rem 0.65rem',
+                  padding: '0.35rem 0.6rem',
                   fontSize: '0.75rem',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -121,79 +155,194 @@ export default function DeviceTable({ devices, loading }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Dispositivo / Host</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Dirección MAC</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Fabricante (OUI)</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Tipo</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Servicios / Telemetría</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Estado</th>
-              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>Último Visto</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_device || "Dispositivo / Host"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_mac || "Dirección MAC"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_vendor || "Fabricante Real (OUI)"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_type || "Tipo"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_verification || "Comprobación / Latencia"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_services || "Servicios Activos"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600' }}>{tbT.th_status || "Estado"}</th>
+              <th style={{ padding: '0.75rem 1rem', fontWeight: '600', textAlign: 'center' }}>{tbT.th_action || "Acción"}</th>
             </tr>
           </thead>
           <tbody>
             {filteredDevices.length === 0 ? (
               <tr>
-                <td colSpan="7" style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-dim)' }}>
-                  No se encontraron dispositivos que coincidan con el criterio de búsqueda.
+                <td colSpan="8" style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-dim)' }}>
+                  <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '50%',
+                      background: 'rgba(0, 242, 254, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--accent-cyan)'
+                    }}>
+                      <Search size={24} />
+                    </div>
+                    <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                      {devices.length === 0 ? (tbT.empty_title || 'No hay dispositivos alistados aún') : (tbT.no_match || 'No hay coincidencias')}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      {devices.length === 0
+                        ? (tbT.empty_desc || 'Cyberguru no muestra equipos de prueba ficticios. Ejecuta un escaneo para descubrir y verificar activamente los dispositivos reales en tu red local.')
+                        : (tbT.no_match || 'Prueba cambiando el filtro de búsqueda.')}
+                    </div>
+                  </div>
                 </td>
               </tr>
             ) : (
-              filteredDevices.map((dev) => (
-                <tr
-                  key={dev.id || dev.mac}
-                  style={{
-                    borderBottom: '1px solid rgba(30, 41, 59, 0.5)',
-                    transition: 'background 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(30, 41, 59, 0.4)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>
-                      {dev.hostname || 'Desconocido'}
-                    </div>
-                    <div className="font-mono" style={{ fontSize: '0.75rem', color: dev.ip === '0.0.0.0' ? 'var(--text-dim)' : 'var(--accent-cyan)' }}>
-                      {dev.ip === '0.0.0.0' ? 'Sin IP (BLE)' : dev.ip}
-                    </div>
-                  </td>
-                  <td className="font-mono" style={{ padding: '0.75rem 1rem', color: '#cbd5e1' }}>
-                    {dev.mac}
-                  </td>
-                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
-                    {dev.vendor}
-                  </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <span className={getBadgeClass(dev.device_type, dev.snmp_enabled)}>
-                      {getTypeIcon(dev.device_type, dev.snmp_enabled)}
-                      {dev.device_type === 'Camera' ? 'Cámara' : dev.device_type}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.75rem 1rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-                    {dev.services ? (
-                      <span style={{ color: 'var(--accent-cyan)', fontWeight: '500' }}>
-                        {dev.services}
+              filteredDevices.map((dev) => {
+                const isVerifying = verifyingDeviceId === dev.id
+                return (
+                  <tr
+                    key={dev.id || dev.mac}
+                    style={{
+                      borderBottom: '1px solid rgba(30, 41, 59, 0.5)',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(30, 41, 59, 0.4)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {/* Dispositivo / Host */}
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
+                          {dev.hostname || 'Host LAN'}
+                        </span>
+                        {dev.is_gateway && (
+                          <span style={{
+                            background: 'rgba(99, 102, 241, 0.2)',
+                            color: 'var(--accent-indigo)',
+                            fontSize: '0.65rem',
+                            fontWeight: '700',
+                            padding: '0.1rem 0.35rem',
+                            borderRadius: '4px'
+                          }}>
+                            GATEWAY
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-mono" style={{ fontSize: '0.75rem', color: dev.ip === '0.0.0.0' ? 'var(--text-dim)' : 'var(--accent-cyan)' }}>
+                        {dev.ip === '0.0.0.0' ? 'Sin IP (BLE)' : dev.ip}
+                      </div>
+                    </td>
+
+                    {/* MAC */}
+                    <td className="font-mono" style={{ padding: '0.75rem 1rem', color: '#cbd5e1' }}>
+                      {dev.mac}
+                    </td>
+
+                    {/* Fabricante OUI */}
+                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
+                      {dev.vendor}
+                    </td>
+
+                    {/* Tipo */}
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <span className={getBadgeClass(dev.device_type, dev.snmp_enabled, dev.is_gateway)}>
+                        {getTypeIcon(dev.device_type, dev.snmp_enabled, dev.is_gateway)}
+                        {dev.is_gateway ? 'Gateway' : dev.device_type === 'Camera' ? 'Cámara' : dev.device_type}
                       </span>
-                    ) : dev.device_type === 'BLE' && dev.rssi ? (
-                      <span className="font-mono" style={{ color: dev.rssi > -65 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
-                        RSSI: {dev.rssi} dBm
-                      </span>
-                    ) : (
-                      dev.os_info || 'Protocolo estándar'
-                    )}
-                  </td>
-                  <td style={{ padding: '0.75rem 1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <span className="pulse-green"></span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: '500' }}>
-                        Online
-                      </span>
-                    </div>
-                  </td>
-                  <td className="font-mono" style={{ padding: '0.75rem 1rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-                    {formatLastSeen(dev.last_seen)}
-                  </td>
-                </tr>
-              ))
+                    </td>
+
+                    {/* Comprobación / Latencia */}
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{
+                          background: dev.verified ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: dev.verified ? 'var(--accent-emerald)' : 'var(--accent-rose)',
+                          border: `1px solid ${dev.verified ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                          fontSize: '0.7rem',
+                          fontWeight: '700',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}>
+                          <CheckCircle size={10} />
+                          {dev.verified ? (tbT.verified || 'Comprobado') : (tbT.not_verified || 'No verificado')}
+                        </span>
+                        {dev.response_time_ms > 0 && (
+                          <span className="font-mono" style={{
+                            fontSize: '0.75rem',
+                            color: dev.response_time_ms <= 20 ? 'var(--accent-emerald)' : dev.response_time_ms <= 100 ? 'var(--accent-cyan)' : 'var(--accent-amber)',
+                            fontWeight: '600'
+                          }}>
+                            {dev.response_time_ms} ms
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>
+                        {dev.verification_method || 'Respuesta de red validada'}
+                      </div>
+                    </td>
+
+                    {/* Servicios / Telemetría */}
+                    <td style={{ padding: '0.75rem 1rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                      {dev.services ? (
+                        <span style={{ color: 'var(--accent-cyan)', fontWeight: '500' }}>
+                          {dev.services}
+                        </span>
+                      ) : dev.device_type === 'BLE' && dev.rssi ? (
+                        <span className="font-mono" style={{ color: dev.rssi > -65 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
+                          RSSI: {dev.rssi} dBm
+                        </span>
+                      ) : (
+                        dev.os_info || 'Protocolo LAN verificado'
+                      )}
+                    </td>
+
+                    {/* Estado */}
+                    <td style={{ padding: '0.75rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span className={dev.status === 'online' ? "pulse-green" : "pulse-red"}></span>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          color: dev.status === 'online' ? 'var(--accent-emerald)' : 'var(--accent-rose)',
+                          fontWeight: '600'
+                        }}>
+                          {dev.status === 'online' ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                      <div className="font-mono" style={{ fontSize: '0.65rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>
+                        {formatLastSeen(dev.last_seen)}
+                      </div>
+                    </td>
+
+                    {/* Acción: Re-comprobar individual */}
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      {onVerifyDevice && dev.ip && dev.ip !== '0.0.0.0' && (
+                        <button
+                          onClick={() => onVerifyDevice(dev.id)}
+                          disabled={isVerifying}
+                          title={tbT.verify_btn || "Volver a comprobar este dispositivo en tiempo real"}
+                          style={{
+                            background: isVerifying ? 'rgba(0, 242, 254, 0.2)' : 'rgba(30, 41, 59, 0.8)',
+                            border: '1px solid var(--border-subtle)',
+                            color: isVerifying ? 'var(--accent-cyan)' : 'var(--text-main)',
+                            borderRadius: '6px',
+                            padding: '0.3rem 0.6rem',
+                            fontSize: '0.7rem',
+                            fontWeight: '600',
+                            cursor: isVerifying ? 'wait' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <RefreshCw size={12} className={isVerifying ? 'animate-spin' : ''} />
+                          {isVerifying ? (tbT.verifying_btn || 'Comprobando') : (tbT.verify_btn || 'Comprobar')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

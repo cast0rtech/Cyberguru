@@ -167,11 +167,17 @@ func (e *Engine) RunScan(scanType string) (*models.ScanHistory, error) {
 
 	history.FinishedAt = time.Now()
 	history.DevicesFound = totalFound
+	history.VerifiedFound = totalFound
 	history.Status = "completed"
 	history.Details = fmt.Sprintf("Resumen: %v", detailsLog)
 
+	if scanType == "arp" || scanType == "all" {
+		_ = e.database.MarkUnresponsiveOffline(history.StartedAt)
+	}
+
 	_ = e.database.RecordScan(history)
-	log.Printf("[Scanner] Escaneo finalizado con éxito. Total procesados: %d", totalFound)
+	_ = e.database.RecordStatsSnapshot()
+	log.Printf("[Scanner] Escaneo finalizado con éxito. Total reales comprobados: %d", totalFound)
 
 	return history, nil
 }

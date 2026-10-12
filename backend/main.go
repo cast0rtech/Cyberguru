@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -53,6 +57,29 @@ func main() {
 		_, _ = engine.RunScan("all")
 	}()
 
+	// Comprobar puerto o asignar automáticamente uno libre
+	listener, err := net.Listen("tcp", ":"+cfg.Port)
+	if err != nil {
+		log.Printf("[Server] Puerto %s no disponible (%v). Buscando puerto libre...", cfg.Port, err)
+		basePort := 8080
+		if p, errConv := strconv.Atoi(cfg.Port); errConv == nil {
+			basePort = p
+		}
+		for offset := 1; offset <= 20; offset++ {
+			candidate := strconv.Itoa(basePort + offset)
+			listener, err = net.Listen("tcp", ":"+candidate)
+			if err == nil {
+				cfg.Port = candidate
+				log.Printf("[Server] Puerto libre asignado exitosamente: %s", cfg.Port)
+				break
+			}
+		}
+		if listener == nil {
+			log.Fatalf("[Server] Error fatal: No se encontró ningún puerto disponible: %v", err)
+		}
+	}
+	defer listener.Close()
+
 	server := api.NewServer(database, engine, cfg)
 	httpServer := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -67,9 +94,19 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		log.Printf("[Server] Servidor web y API escuchando en http://0.0.0.0:%s", cfg.Port)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Printf("[Server] Servidor web y API escuchando en http://0.0.0.0:%s (http://localhost:%s)", cfg.Port, cfg.Port)
+		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("[Server] Error en servidor HTTP: %v", err)
+		}
+	}()
+
+	// En Windows o entorno de escritorio, abrir navegador automáticamente
+	go func() {
+		time.Sleep(800 * time.Millisecond)
+		if os.Getenv("NO_BROWSER") == "" && !containsArg(os.Args, "--no-browser") {
+			url := "http://localhost:" + cfg.Port
+			log.Printf("[Desktop] Abriendo dashboard en navegador: %s", url)
+			openBrowser(url)
 		}
 	}()
 
@@ -84,4 +121,28 @@ func main() {
 	}
 
 	log.Println("[Shutdown] Cyberguru detenido limpiamente.")
+}
+
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Printf("[Desktop] No se pudo lanzar navegador automáticamente: %v. Abre manualmente: %s", err, url)
+	}
+}
+
+func containsArg(args []string, target string) bool {
+	for _, a := range args {
+		if a == target {
+			return true
+		}
+	}
+	return false
 }

@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { AlertTriangle, CheckCircle } from './Icons'
 
-export default function AlertFeed({ alerts, onAcknowledgeAlert }) {
+export default function AlertFeed({ alerts, onAcknowledgeAlert, t }) {
   const [showOnlyPending, setShowOnlyPending] = useState(true)
+  const alT = t?.alerts || {}
 
   const displayedAlerts = showOnlyPending 
     ? alerts.filter(a => !a.acknowledged) 
@@ -11,11 +12,11 @@ export default function AlertFeed({ alerts, onAcknowledgeAlert }) {
   const getSeverityBadge = (severity) => {
     switch (severity) {
       case 'danger':
-        return <span className="badge badge-severity-danger">Crítica</span>
+        return <span className="badge badge-severity-danger">{alT.critical || "Crítica"}</span>
       case 'warning':
-        return <span className="badge badge-severity-warning">Advertencia</span>
+        return <span className="badge badge-severity-warning">{alT.warning || "Advertencia"}</span>
       default:
-        return <span className="badge badge-severity-info">Informativa</span>
+        return <span className="badge badge-severity-info">{alT.info || "Informativa"}</span>
     }
   }
 
@@ -31,7 +32,7 @@ export default function AlertFeed({ alerts, onAcknowledgeAlert }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertTriangle size={18} color="var(--accent-amber)" />
           <h3 style={{ fontSize: '1.05rem', fontWeight: '600', color: 'var(--text-main)' }}>
-            Alertas de Ciberseguridad
+            {alT.title || "Alertas de Ciberseguridad"}
           </h3>
         </div>
 
@@ -46,7 +47,7 @@ export default function AlertFeed({ alerts, onAcknowledgeAlert }) {
             textDecoration: 'underline'
           }}
         >
-          {showOnlyPending ? "Ver todas" : "Solo pendientes"}
+          {showOnlyPending ? (alT.show_all || "Ver todas") : (alT.show_pending || "Solo pendientes")}
         </button>
       </div>
 
@@ -54,7 +55,7 @@ export default function AlertFeed({ alerts, onAcknowledgeAlert }) {
         {displayedAlerts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-dim)' }}>
             <CheckCircle size={32} color="var(--accent-emerald)" style={{ margin: '0 auto 0.5rem' }} />
-            <p style={{ fontSize: '0.85rem' }}>No hay alertas de seguridad pendientes.</p>
+            <p style={{ fontSize: '0.85rem' }}>{alT.empty || "No hay alertas de seguridad pendientes."}</p>
           </div>
         ) : (
           displayedAlerts.map((alert) => (
@@ -98,14 +99,10 @@ export default function AlertFeed({ alerts, onAcknowledgeAlert }) {
                       color: 'var(--accent-cyan)',
                       fontSize: '0.7rem',
                       padding: '0.2rem 0.5rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem'
+                      cursor: 'pointer'
                     }}
                   >
-                    <CheckCircle size={11} />
-                    Resolver
+                    {alT.ack || "Marcar Resuelta"}
                   </button>
                 </div>
               )}

@@ -4,46 +4,56 @@ import MetricCard from './components/MetricCard'
 import ScannerPanel from './components/ScannerPanel'
 import DeviceTable from './components/DeviceTable'
 import AlertFeed from './components/AlertFeed'
-import { Wifi, Server, Bluetooth, AlertTriangle, Activity, Camera, HardDrive } from './components/Icons'
-
-const DEFAULT_DEVICES = [
-  { id: 1, mac: "00:1A:2B:3C:4D:5E", ip: "192.168.1.1", hostname: "gateway-router.local", vendor: "Cisco Systems", device_type: "SNMP", os_info: "Cisco IOS 15.2(4)M", services: "SNMP (161)", last_seen: new Date().toISOString(), status: "online", snmp_enabled: true },
-  { id: 2, mac: "44:19:B6:88:77:66", ip: "192.168.1.120", hostname: "cctv-hikvision-garage", vendor: "Hikvision Digital", device_type: "Camera", os_info: "Hikvision IPCam v5.7", services: "RTSP-Stream (554), ONVIF (8000)", last_seen: new Date().toISOString(), status: "online", snmp_enabled: false },
-  { id: 3, mac: "00:11:32:88:99:AA", ip: "192.168.1.50", hostname: "synology-nas-storage", vendor: "Synology Inc.", device_type: "NAS", os_info: "Synology DSM 7.2.1", services: "SMB/CIFS (445), Synology-DSM (5000)", last_seen: new Date().toISOString(), status: "online", snmp_enabled: false },
-  { id: 4, mac: "DC:A6:32:11:88:99", ip: "192.168.1.105", hostname: "security-cam-front", vendor: "Raspberry Pi Foundation", device_type: "Camera", os_info: "MotionEyeOS RTSP", services: "RTSP-Stream (554)", last_seen: new Date().toISOString(), status: "online", snmp_enabled: false },
-  { id: 5, mac: "F4:34:F0:77:A1:B2", ip: "192.168.1.189", hostname: "iot-air-sensor", vendor: "Espressif Systems", device_type: "WiFi", os_info: "ESP32 FreeRTOS", services: "MQTT (1883)", last_seen: new Date().toISOString(), status: "online", snmp_enabled: false },
-  { id: 6, mac: "AC:DE:48:FF:99:00", ip: "0.0.0.0", hostname: "Apple AirTag (Beacon)", vendor: "Apple Inc. (iBeacon)", device_type: "BLE", os_info: "BLE v5.0 Proximity", services: "BLE Adv", last_seen: new Date().toISOString(), status: "online", rssi: -62, snmp_enabled: false }
-]
-
-const DEFAULT_ALERTS = [
-  { id: 1, severity: "warning", title: "Flujo de Vídeo RTSP Abierto en 192.168.1.120", description: "Cámara IP cctv-hikvision-garage transmite en RTSP puerto 554 sin cifrado TLS.", timestamp: new Date().toISOString(), acknowledged: false },
-  { id: 2, severity: "warning", title: "Panel NAS en HTTP no cifrado en 192.168.1.50", description: "El almacenamiento NAS synology-nas-storage expone DSM en HTTP 5000. Se recomienda activar HTTPS 5001.", timestamp: new Date().toISOString(), acknowledged: false },
-  { id: 3, severity: "warning", title: "Puerto SNMP público detectado", description: "El gateway (192.168.1.1) responde a consultas SNMP con la comunidad 'public'.", timestamp: new Date().toISOString(), acknowledged: false }
-]
+import StatsAnalytics from './components/StatsAnalytics'
+import { translations } from './i18n'
+import { Wifi, Server, Bluetooth, AlertTriangle, Activity, Camera, HardDrive, CheckCircle, Zap, Globe, BarChart } from './components/Icons'
 
 export default function App() {
+  const [lang, setLang] = useState(() => localStorage.getItem('cyberguru_lang') || 'es')
+  const t = translations[lang] || translations.es
+
+  const handleLangChange = (newLang) => {
+    setLang(newLang)
+    localStorage.setItem('cyberguru_lang', newLang)
+  }
+
   const [stats, setStats] = useState({
-    total_devices: 6,
-    online_devices: 6,
-    snmp_devices: 1,
-    ble_devices: 1,
-    camera_devices: 2,
-    nas_devices: 1,
-    total_alerts: 3,
-    pending_alerts: 3,
+    total_devices: 0,
+    online_devices: 0,
+    verified_devices: 0,
+    verification_rate_pct: 100,
+    avg_latency_ms: 0,
+    min_latency_ms: 0,
+    max_latency_ms: 0,
+    gateway_ip: '',
+    gateway_latency_ms: 0,
+    snmp_devices: 0,
+    ble_devices: 0,
+    camera_devices: 0,
+    nas_devices: 0,
+    total_alerts: 0,
+    pending_alerts: 0,
     critical_alerts: 0,
-    last_scan_time: new Date().toLocaleTimeString()
+    last_scan_time: '',
+    by_type: {},
+    by_vendor: {},
+    latency_distribution: {}
   })
+
+  // Sin dispositivos ficticios ni mocks pre-cargados
   const [devices, setDevices] = useState(() => {
     const saved = localStorage.getItem('cyberguru_devices')
-    return saved ? JSON.parse(saved) : DEFAULT_DEVICES
+    return saved ? JSON.parse(saved) : []
   })
   const [alerts, setAlerts] = useState(() => {
     const saved = localStorage.getItem('cyberguru_alerts')
-    return saved ? JSON.parse(saved) : DEFAULT_ALERTS
+    return saved ? JSON.parse(saved) : []
   })
+
+  const [activeTab, setActiveTab] = useState('inventory') // 'inventory' | 'stats'
   const [isScanning, setIsScanning] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [verifyingDeviceId, setVerifyingDeviceId] = useState(null)
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('cyberguru_server_url') || '')
   const [isOfflineMode, setIsOfflineMode] = useState(false)
 
@@ -63,16 +73,19 @@ export default function App() {
         fetch(getEndpoint('/api/health'))
       ])
 
-      if (statsRes.ok) setStats(await statsRes.json())
+      if (statsRes.ok) {
+        const s = await statsRes.json()
+        setStats(s)
+      }
       if (devRes.ok) {
         const d = await devRes.json()
-        setDevices(d)
-        localStorage.setItem('cyberguru_devices', JSON.stringify(d))
+        setDevices(d || [])
+        localStorage.setItem('cyberguru_devices', JSON.stringify(d || []))
       }
       if (alertsRes.ok) {
         const a = await alertsRes.json()
-        setAlerts(a)
-        localStorage.setItem('cyberguru_alerts', JSON.stringify(a))
+        setAlerts(a || [])
+        localStorage.setItem('cyberguru_alerts', JSON.stringify(a || []))
       }
       if (healthRes.ok) {
         const health = await healthRes.json()
@@ -86,7 +99,7 @@ export default function App() {
 
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 5000)
+    const interval = setInterval(fetchData, 4000)
     return () => clearInterval(interval)
   }, [serverUrl])
 
@@ -100,94 +113,46 @@ export default function App() {
       })
       if (res.ok) {
         await fetchData()
-      } else {
-        throw new Error("Servidor no disponible")
       }
     } catch (err) {
-      // Simulación offline en smartphone/móvil
-      setTimeout(() => {
-        const now = new Date()
-        let newDevs = [...devices]
-        let newAlerts = [...alerts]
-
-        if (scanType === 'iot' || scanType === 'all') {
-          const camDev = {
-            id: Date.now() + 1,
-            mac: "3C:EF:8C:11:22:33",
-            ip: "192.168.1.135",
-            hostname: "cctv-dahua-backyard",
-            vendor: "Dahua Technology",
-            device_type: "Camera",
-            os_info: "Dahua IPC RTSP",
-            services: "RTSP-Stream (554), ONVIF (8000)",
-            last_seen: now.toISOString(),
-            status: "online",
-            snmp_enabled: false
-          }
-          const nasDev = {
-            id: Date.now() + 2,
-            mac: "00:08:9B:44:55:66",
-            ip: "192.168.1.55",
-            hostname: "qnap-ts453d-backup",
-            vendor: "QNAP Systems",
-            device_type: "NAS",
-            os_info: "QTS 5.1 Linux",
-            services: "SMB/CIFS (445), QNAP-QTS (8080)",
-            last_seen: now.toISOString(),
-            status: "online",
-            snmp_enabled: false
-          }
-          newDevs.push(camDev, nasDev)
-          newAlerts.unshift({
-            id: Date.now() + 3,
-            severity: "warning",
-            title: "Cámara Dahua con RTSP Abierto detectada",
-            description: "Cámara cctv-dahua-backyard (192.168.1.135) identificada con transmisión de vídeo RTSP en puerto 554.",
-            timestamp: now.toISOString(),
-            acknowledged: false
-          })
-        }
-
-        if (scanType === 'arp') {
-          const mobilePeer = {
-            id: Date.now() + 4,
-            mac: "30:AE:A4:44:55:66",
-            ip: "192.168.1.190",
-            hostname: "iot-device-lan",
-            vendor: "Espressif Systems",
-            device_type: "WiFi",
-            os_info: "FreeRTOS",
-            services: "HTTP (80)",
-            last_seen: now.toISOString(),
-            status: "online",
-            snmp_enabled: false
-          }
-          newDevs.push(mobilePeer)
-        }
-
-        setDevices(newDevs)
-        setAlerts(newAlerts)
-        localStorage.setItem('cyberguru_devices', JSON.stringify(newDevs))
-        localStorage.setItem('cyberguru_alerts', JSON.stringify(newAlerts))
-
-        setStats({
-          total_devices: newDevs.length,
-          online_devices: newDevs.filter(d => d.status === 'online').length,
-          snmp_devices: newDevs.filter(d => d.snmp_enabled).length,
-          ble_devices: newDevs.filter(d => d.device_type === 'BLE').length,
-          camera_devices: newDevs.filter(d => d.device_type === 'Camera').length,
-          nas_devices: newDevs.filter(d => d.device_type === 'NAS').length,
-          total_alerts: newAlerts.length,
-          pending_alerts: newAlerts.filter(a => !a.acknowledged).length,
-          critical_alerts: newAlerts.filter(a => a.severity === 'danger' && !a.acknowledged).length,
-          last_scan_time: now.toLocaleTimeString()
-        })
-        setIsScanning(false)
-      }, 1500)
+      // Error de red
     } finally {
-      if (!isOfflineMode) {
-        setIsScanning(false)
+      setIsScanning(false)
+    }
+  }
+
+  // Comprobación individual de un dispositivo en tiempo real
+  const handleVerifyDevice = async (id) => {
+    setVerifyingDeviceId(id)
+    try {
+      const res = await fetch(getEndpoint(`/api/devices/${id}/verify`), {
+        method: 'POST'
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.device) {
+          setDevices(prev => prev.map(d => d.id === id ? data.device : d))
+        }
+        await fetchData()
       }
+    } catch (err) {
+      // ignore
+    } finally {
+      setVerifyingDeviceId(null)
+    }
+  }
+
+  // Purgar datos de prueba o ficticios anteriores
+  const handlePurgeMock = async () => {
+    try {
+      const res = await fetch(getEndpoint('/api/cleanup-fake'), { method: 'POST' })
+      if (res.ok) {
+        localStorage.removeItem('cyberguru_devices')
+        localStorage.removeItem('cyberguru_alerts')
+        await fetchData()
+      }
+    } catch (err) {
+      // ignore
     }
   }
 
@@ -200,7 +165,7 @@ export default function App() {
         return
       }
     } catch (err) {
-      // Modo local
+      // ignore
     }
     const updated = alerts.map(a => a.id === id ? { ...a, acknowledged: true } : a)
     setAlerts(updated)
@@ -209,118 +174,174 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: '1440px', margin: '0 auto', paddingBottom: '2.5rem' }}>
-      <Header isScanning={isScanning} lastScanTime={stats.last_scan_time} />
+      <Header
+        isScanning={isScanning}
+        lastScanTime={stats.last_scan_time}
+        lang={lang}
+        onLangChange={handleLangChange}
+        t={t}
+      />
 
-      {/* Barra de estado en modo Móvil/Android */}
-      {isOfflineMode && (
-        <div style={{ margin: '0 1rem 1rem', padding: '0.6rem 1rem', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.8rem' }}>
-          <div>
-            <span style={{ fontWeight: '600', color: 'var(--accent-indigo)' }}>📱 Modo Móvil Autónomo:</span>
-            <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>Rastreo de red, cámaras y NAS desde el dispositivo.</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <input
-              type="text"
-              placeholder="IP Servidor (ej: http://192.168.1.100:8080)"
-              value={serverUrl}
-              onChange={(e) => {
-                setServerUrl(e.target.value)
-                localStorage.setItem('cyberguru_server_url', e.target.value)
-              }}
-              style={{
-                background: 'rgba(15, 23, 42, 0.8)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '4px',
-                padding: '0.2rem 0.5rem',
-                color: 'var(--text-main)',
-                fontSize: '0.75rem',
-                width: '240px'
-              }}
-            />
-            {serverUrl && (
-              <button
-                onClick={fetchData}
-                style={{ background: 'var(--accent-cyan)', color: '#000', border: 'none', borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }}
-              >
-                Conectar
-              </button>
-            )}
-          </div>
+      {/* Selector de Vistas / Pestañas Principales */}
+      <div style={{ margin: '0 1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{
+          display: 'flex',
+          background: 'rgba(15, 23, 42, 0.7)',
+          padding: '4px',
+          borderRadius: '10px',
+          border: '1px solid var(--border-subtle)',
+          gap: '4px'
+        }}>
+          <button
+            onClick={() => setActiveTab('inventory')}
+            style={{
+              background: activeTab === 'inventory' ? 'linear-gradient(135deg, rgba(0,242,254,0.2), rgba(79,70,229,0.2))' : 'transparent',
+              color: activeTab === 'inventory' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+              border: activeTab === 'inventory' ? '1px solid rgba(0,242,254,0.4)' : '1px solid transparent',
+              borderRadius: '8px',
+              padding: '0.55rem 1.1rem',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <Activity size={16} />
+            {t.tabs.inventory} ({devices.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('stats')}
+            style={{
+              background: activeTab === 'stats' ? 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2))' : 'transparent',
+              color: activeTab === 'stats' ? 'var(--accent-emerald)' : 'var(--text-muted)',
+              border: activeTab === 'stats' ? '1px solid rgba(16,185,129,0.4)' : '1px solid transparent',
+              borderRadius: '8px',
+              padding: '0.55rem 1.1rem',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <BarChart size={16} />
+            {t.tabs.stats}
+          </button>
         </div>
-      )}
+
+        {/* Indicador de Estado de Conexión */}
+        {isOfflineMode && (
+          <div style={{
+            fontSize: '0.75rem',
+            color: 'var(--accent-rose)',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '6px',
+            padding: '0.35rem 0.75rem'
+          }}>
+            {t.tabs.offline_warn}
+          </div>
+        )}
+      </div>
 
       <main style={{ padding: '0 1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {/* Fila de Métricas */}
+        {/* Fila de Métricas Principales */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '1rem'
         }}>
           <MetricCard
-            title="Total Equipos"
-            value={stats.total_devices}
-            subtitle="Inventariados en el sensor"
-            icon={Activity}
+            title={t.metrics.real_devices}
+            value={stats.verified_devices || devices.length}
+            subtitle={t.metrics.real_devices_sub}
+            icon={CheckCircle}
+            color="emerald"
+          />
+          <MetricCard
+            title={t.metrics.avg_latency}
+            value={stats.avg_latency_ms ? `${stats.avg_latency_ms.toFixed(0)} ms` : '0 ms'}
+            subtitle={stats.gateway_ip ? `Gateway: ${stats.gateway_ip}` : t.metrics.rtt_sub}
+            icon={Zap}
             color="cyan"
           />
           <MetricCard
-            title="Cámaras IP"
+            title={t.metrics.cams}
             value={stats.camera_devices || 0}
-            subtitle="RTSP / ONVIF de vigilancia"
+            subtitle={t.metrics.cams_sub}
             icon={Camera}
             color="rose"
           />
           <MetricCard
-            title="Servidores NAS"
+            title={t.metrics.nas}
             value={stats.nas_devices || 0}
-            subtitle="Almacenamiento SMB / DSM"
+            subtitle={t.metrics.nas_sub}
             icon={HardDrive}
             color="emerald"
           />
           <MetricCard
-            title="Switches SNMP"
-            value={stats.snmp_devices}
-            subtitle="Puerto UDP 161 detectado"
+            title={t.metrics.snmp}
+            value={stats.snmp_devices || 0}
+            subtitle={t.metrics.snmp_sub}
             icon={Server}
             color="amber"
           />
           <MetricCard
-            title="Balizas BLE"
-            value={stats.ble_devices}
-            subtitle="Dispositivos de proximidad"
-            icon={Bluetooth}
-            color="indigo"
-          />
-          <MetricCard
-            title="Alertas Críticas"
-            value={stats.critical_alerts}
-            subtitle={`${stats.pending_alerts} pendientes`}
+            title={t.metrics.alerts}
+            value={stats.pending_alerts || alerts.filter(a => !a.acknowledged).length}
+            subtitle={`${stats.critical_alerts || 0} ${t.metrics.critical_sub}`}
             icon={AlertTriangle}
             color="rose"
           />
         </div>
 
-        {/* Panel de Control de Escaneo */}
-        <ScannerPanel onTriggerScan={handleTriggerScan} isScanning={isScanning} />
+        {/* Vista 1: Inventario de Dispositivos */}
+        {activeTab === 'inventory' && (
+          <>
+            <ScannerPanel onTriggerScan={handleTriggerScan} isScanning={isScanning} t={t} />
 
-        {/* Contenido Principal: Inventario y Alertas */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: '1.25rem',
-          alignItems: 'start'
-        }}>
-          <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
-            <DeviceTable devices={devices} loading={loading} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <AlertFeed alerts={alerts} onAcknowledgeAlert={handleAcknowledgeAlert} />
-          </div>
-        </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: '1.25rem',
+              alignItems: 'start'
+            }}>
+              <div style={{ minWidth: 0, gridColumn: 'span 2' }}>
+                <DeviceTable
+                  devices={devices}
+                  loading={loading}
+                  onVerifyDevice={handleVerifyDevice}
+                  verifyingDeviceId={verifyingDeviceId}
+                  t={t}
+                />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <AlertFeed alerts={alerts} onAcknowledgeAlert={handleAcknowledgeAlert} t={t} />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Vista 2: Estadísticas y Base de Datos */}
+        {activeTab === 'stats' && (
+          <StatsAnalytics
+            stats={stats}
+            getEndpoint={getEndpoint}
+            onRefreshStats={fetchData}
+            onPurgeMock={handlePurgeMock}
+            t={t}
+          />
+        )}
       </main>
 
       <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-        Cyberguru Security Suite &copy; 2026 • Rastreo de Red, Cámaras CCTV, Almacenamiento NAS & BLE • by cast0rtech
+        {t.footer.copyright}
       </footer>
     </div>
   )

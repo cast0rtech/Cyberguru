@@ -24,8 +24,9 @@ WORKDIR /app
 COPY backend/go.mod backend/go.sum* ./
 RUN go mod download || true
 
-# Copia del código fuente
+# Copia del código fuente y assets para embeber
 COPY backend/ ./
+COPY --from=frontend-builder /app/frontend/dist /app/api/dist
 
 # Compilación de binario estático y optimizado (-s -w elimina símbolos de debug)
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o cyberguru .

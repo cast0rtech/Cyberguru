@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { RefreshCw, Wifi, Server, Bluetooth, Activity, Camera } from './Icons'
 
-export default function ScannerPanel({ onTriggerScan, isScanning }) {
+export default function ScannerPanel({ onTriggerScan, isScanning, t }) {
   const [activeType, setActiveType] = useState(null)
+  const scT = t?.scanner || {}
 
   const handleScan = async (type) => {
     setActiveType(type)
@@ -16,10 +17,10 @@ export default function ScannerPanel({ onTriggerScan, isScanning }) {
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={18} color="var(--accent-cyan)" />
-            Centro de Control de Escaneo & Rastreo
+            {scT.title || "Centro de Control de Escaneo & Rastreo"}
           </h2>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Inspección activa de red: ARP LAN, sondeo SNMP, radar BLE, cámaras IP (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)
+            {scT.desc || "Inspección activa de red: ARP LAN, sondeo SNMP, radar BLE, cámaras IP (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)"}
           </p>
         </div>
 
@@ -28,40 +29,40 @@ export default function ScannerPanel({ onTriggerScan, isScanning }) {
             className="btn btn-secondary"
             onClick={() => handleScan('arp')}
             disabled={isScanning}
-            title="Escanear tabla ARP de la red local"
+            title={scT.arp_title || "Escanear tabla ARP de la red local"}
           >
             <Wifi size={15} color="var(--accent-cyan)" />
-            <span>Barrido ARP</span>
+            <span>{scT.arp_btn || "Barrido ARP"}</span>
           </button>
 
           <button
             className="btn btn-secondary"
             onClick={() => handleScan('snmp')}
             disabled={isScanning}
-            title="Sondear servicios SNMP expuestos en puerto 161"
+            title={scT.snmp_title || "Sondear servicios SNMP expuestos en puerto 161"}
           >
             <Server size={15} color="var(--accent-amber)" />
-            <span>Sondeo SNMP</span>
+            <span>{scT.snmp_btn || "Sondeo SNMP"}</span>
           </button>
 
           <button
             className="btn btn-secondary"
             onClick={() => handleScan('ble')}
             disabled={isScanning}
-            title="Descubrir balizas y beacons BLE cercanos"
+            title={scT.ble_title || "Descubrir balizas y beacons BLE cercanos"}
           >
             <Bluetooth size={15} color="var(--accent-emerald)" />
-            <span>Radar BLE</span>
+            <span>{scT.ble_btn || "Radar BLE"}</span>
           </button>
 
           <button
             className="btn btn-secondary"
             onClick={() => handleScan('iot')}
             disabled={isScanning}
-            title="Sondear cámaras de vigilancia (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)"
+            title={scT.iot_title || "Sondear cámaras de vigilancia (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)"}
           >
             <Camera size={15} color="var(--accent-rose)" />
-            <span>Rastrear NAS & Cams</span>
+            <span>{scT.iot_btn || "Rastrear NAS & Cams"}</span>
           </button>
 
           <button
@@ -70,7 +71,7 @@ export default function ScannerPanel({ onTriggerScan, isScanning }) {
             disabled={isScanning}
           >
             <RefreshCw size={15} className={isScanning ? "animate-spin" : ""} />
-            <span>{isScanning ? "Escaneando..." : "Escanear Todo"}</span>
+            <span>{isScanning ? (scT.scanning_btn || "Escaneando...") : (scT.all_btn || "Escanear Todo")}</span>
           </button>
         </div>
       </div>
