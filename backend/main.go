@@ -28,7 +28,7 @@ func main() {
 / /___/ /_/ / /_/ /  __/ /  / /_/ / /_/ / /  / /_/ /  
 \____/\__, /_.___/\___/_/   \__, /\__,_/_/   \__,_/   
      /____/                /____/                     
-    Cybersecurity Network & BLE Sensor Suite v1.0
+    Cybersecurity Network, IoT & BLE Suite v1.1.0
 `
 	fmt.Println(banner)
 

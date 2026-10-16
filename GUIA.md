@@ -1,6 +1,12 @@
 # 📖 Guía Completa de Usuario y Administración — Cyberguru
 
+**Autor:** `cast0rtech`  
+**Versión:** 1.1.0  
+**Proyecto:** Cyberguru Security Suite  
+
 Bienvenido a la **Guía Oficial de Cyberguru**, la plataforma integral de inventario de red 100% verificado, observatorio satelital GNSS y auditoría de sensores físicos e inalámbricos (**Zigbee, Z-Wave, Thread, UWB, NFC, Bluetooth/BLE, GPS y LPWAN**).
+
+Guía técnica paso a paso para desarrollar, extender, depurar y mantener la plataforma de ciberseguridad **Cyberguru**.
 
 ---
 

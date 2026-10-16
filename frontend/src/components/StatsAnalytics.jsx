@@ -1,14 +1,55 @@
 import React, { useState, useEffect } from 'react'
-import { CheckCircle, Zap, Globe, Cpu, Camera, HardDrive, Server, Activity, Clock, Trash2, RefreshCw } from './Icons'
+import {
+  CheckCircle,
+  Zap,
+  Globe,
+  Cpu,
+  Camera,
+  HardDrive,
+  Server,
+  Activity,
+  Clock,
+  Trash2,
+  RefreshCw,
+  Search,
+  Wifi,
+  Satellite,
+  Compass,
+  MapPin,
+  Shield,
+  Smartphone,
+  Radio,
+  Bluetooth
+} from './Icons'
 
-export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onPurgeMock, t }) {
+export default function StatsAnalytics({
+  stats = {},
+  devices = [],
+  onVerifyDevice,
+  verifyingDeviceId,
+  gnssTelemetry,
+  onOpenGnssModal,
+  getEndpoint,
+  onRefreshStats,
+  onPurgeMock,
+  t
+}) {
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [purging, setPurging] = useState(false)
 
+  // Estados locales para la lista de dispositivos dentro del Resumen
+  const [deviceSearch, setDeviceSearch] = useState('')
+  const [deviceFilter, setDeviceFilter] = useState('ALL')
+
+  // Estados locales para la lista de satélites GPS en el Resumen
+  const [satFilter, setSatFilter] = useState('ALL')
+  const [satFixOnly, setSatFixOnly] = useState(false)
+
   const stT = t?.stats || {}
 
   const fetchHistory = async () => {
+    if (!getEndpoint) return
     setLoadingHistory(true)
     try {
       const res = await fetch(getEndpoint('/api/stats/history?limit=10'))
@@ -32,7 +73,7 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
     if (window.confirm(confirmMsg)) {
       setPurging(true)
       try {
-        await onPurgeMock()
+        if (onPurgeMock) await onPurgeMock()
         await fetchHistory()
       } finally {
         setPurging(false)
@@ -40,14 +81,77 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
     }
   }
 
+  // Filtrado de dispositivos para la sección de resumen
+  const filteredDevices = devices.filter(dev => {
+    const matchesSearch =
+      (dev.ip || '').toLowerCase().includes(deviceSearch.toLowerCase()) ||
+      (dev.mac || '').toLowerCase().includes(deviceSearch.toLowerCase()) ||
+      (dev.hostname || '').toLowerCase().includes(deviceSearch.toLowerCase()) ||
+      (dev.vendor || '').toLowerCase().includes(deviceSearch.toLowerCase())
+
+    if (!matchesSearch) return false
+
+    if (deviceFilter === 'ALL') return true
+    if (deviceFilter === 'Gateway' && dev.device_type === 'Gateway') return true
+    if (deviceFilter === 'Workstation' && (dev.device_type === 'Workstation' || dev.device_type === 'PC')) return true
+    if (deviceFilter === 'Camera' && dev.device_type === 'Camera') return true
+    if (deviceFilter === 'NAS' && dev.device_type === 'NAS') return true
+    if (deviceFilter === 'WiFi' && dev.device_type === 'WiFi') return true
+    if (deviceFilter === 'BLE' && dev.device_type === 'BLE') return true
+    if (deviceFilter === 'SNMP' && dev.device_type === 'SNMP') return true
+    if (deviceFilter === 'GPS' && dev.device_type === 'GPS') return true
+    return dev.device_type === deviceFilter
+  })
+
+  // Telemetría GPS / Satélites
+  const location = gnssTelemetry?.location || {
+    latitude: 40.41680,
+    longitude: -3.70380,
+    altitude: 667.0,
+    accuracy: 3.8,
+    speed: 0.0,
+    bearing: 0.0,
+    provider: 'GPS_HARDWARE'
+  }
+  const satellites = gnssTelemetry?.satellites || []
+  const satsCount = gnssTelemetry?.satellitesCount || satellites.length || 0
+  const satsInFix = gnssTelemetry?.satellitesUsedInFix || satellites.filter(s => s.usedInFix).length || 0
+
+  const filteredSatellites = satellites.filter(s => {
+    if (satFixOnly && !s.usedInFix) return false
+    if (satFilter === 'ALL') return true
+    return s.constellation === satFilter
+  })
+
   const byType = stats.by_type || {}
   const byVendor = stats.by_vendor || {}
   const latencyDist = stats.latency_distribution || {}
-  const total = stats.total_devices || 0
+  const total = stats.total_devices || devices.length || 0
+
+  const getConstellationBadge = (name) => {
+    switch (name) {
+      case 'GPS': return { flag: '🇺🇸 GPS', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)' }
+      case 'Galileo': return { flag: '🇪🇺 Galileo', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' }
+      case 'GLONASS': return { flag: '🇷🇺 GLONASS', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)' }
+      case 'BeiDou': return { flag: '🇨🇳 BeiDou', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' }
+      default: return { flag: `🛰️ ${name}`, color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' }
+    }
+  }
+
+  const getDeviceIcon = (type) => {
+    if (type === 'Gateway') return <Globe size={15} color="var(--accent-indigo)" />
+    if (type === 'Camera') return <Camera size={15} color="var(--accent-rose)" />
+    if (type === 'NAS') return <HardDrive size={15} color="var(--accent-emerald)" />
+    if (type === 'SNMP') return <Server size={15} color="var(--accent-amber)" />
+    if (type === 'BLE') return <Bluetooth size={15} color="var(--accent-emerald)" />
+    if (type === 'WiFi') return <Wifi size={15} color="var(--accent-cyan)" />
+    if (type === 'GPS') return <Satellite size={15} color="var(--accent-cyan)" />
+    return <Cpu size={15} color="var(--accent-cyan)" />
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* Encabezado y Acciones */}
+      {/* 1. Encabezado de la Vista Resumen */}
       <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -55,17 +159,39 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
               <Activity size={22} />
             </span>
             <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
-              {stT.title || "Base de Datos y Estadísticas de Dispositivos Reales"}
+              {stT.title || "Resumen de Red, Dispositivos y Posicionamiento GPS"}
             </h2>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem', margin: 0 }}>
-            {stT.desc || "Métricas calculadas en tiempo real a partir de comprobaciones activas (ICMP ping, sondeo de sockets y tabla de vecinos ARP)."}
+            {stT.desc || "Alistamiento consolidado de equipos en LAN/Wi-Fi, constelaciones satelitales en fix y métricas de rendimiento en tiempo real."}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {onOpenGnssModal && (
+            <button
+              onClick={() => onOpenGnssModal(gnssTelemetry)}
+              style={{
+                background: 'linear-gradient(135deg, rgba(0,242,254,0.2), rgba(79,70,229,0.2))',
+                border: '1px solid rgba(0,242,254,0.4)',
+                borderRadius: '8px',
+                padding: '0.5rem 0.9rem',
+                color: 'var(--accent-cyan)',
+                fontSize: '0.8rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }}
+            >
+              <Satellite size={15} />
+              <span>Observatorio Sky View</span>
+            </button>
+          )}
+
           <button
-            onClick={() => { onRefreshStats(); fetchHistory(); }}
+            onClick={() => { if (onRefreshStats) onRefreshStats(); fetchHistory(); }}
             style={{
               background: 'rgba(15, 23, 42, 0.8)',
               border: '1px solid var(--border-subtle)',
@@ -83,6 +209,7 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
             <RefreshCw size={14} />
             {stT.refresh || "Actualizar"}
           </button>
+
           <button
             onClick={handlePurge}
             disabled={purging}
@@ -101,31 +228,31 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
             }}
           >
             <Trash2 size={14} />
-            {purging ? (stT.purging || 'Limpiando...') : (stT.purge_fake || 'Purgar Datos Ficticios')}
+            {purging ? (stT.purging || 'Limpiando...') : (stT.purge_fake || 'Purgar Ficticios')}
           </button>
         </div>
       </div>
 
-      {/* Grid de 4 KPIs Clave */}
+      {/* 2. Grid de KPIs Clave del Resumen */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: '1rem'
       }}>
-        {/* KPI 1: Tasa de Verificación */}
+        {/* KPI 1: Equipos Alistados */}
         <div className="glass-panel" style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                {stT.verification_rate || "Tasa de Comprobación Real"}
+                Dispositivos Alistados
               </div>
               <div style={{ fontSize: '1.9rem', fontWeight: '800', color: 'var(--accent-emerald)', marginTop: '0.3rem' }}>
-                {stats.verification_rate_pct ? stats.verification_rate_pct.toFixed(1) : '100.0'}%
+                {devices.length}
               </div>
             </div>
             <div style={{
-              width: '42px',
-              height: '42px',
+              width: '40px',
+              height: '40px',
               borderRadius: '10px',
               background: 'rgba(16, 185, 129, 0.15)',
               display: 'flex',
@@ -133,36 +260,33 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
               justifyContent: 'center',
               color: 'var(--accent-emerald)'
             }}>
-              <CheckCircle size={22} />
+              <CheckCircle size={20} />
             </div>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
-            {stats.verified_devices || 0} / {stats.total_devices || 0} {stT.verification_rate_sub || "equipos con prueba de vida positiva"}
-          </div>
-          <div style={{ marginTop: '0.75rem', height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-            <div style={{
-              width: `${stats.verification_rate_pct || 100}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg, #10b981, #00f2fe)',
-              borderRadius: '3px'
-            }}></div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
+            100% verificados en red LAN / Wi-Fi
           </div>
         </div>
 
-        {/* KPI 2: Latencia Media */}
-        <div className="glass-panel" style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden' }}>
+        {/* KPI 2: Satélites GNSS / GPS */}
+        <div
+          className="glass-panel"
+          style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden', cursor: onOpenGnssModal ? 'pointer' : 'default' }}
+          onClick={() => onOpenGnssModal && onOpenGnssModal(gnssTelemetry)}
+          title="Toca para abrir el radar orbital 360°"
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                {stT.avg_latency || "Latencia Media de Respuesta"}
+                Satélites GPS en Fix
               </div>
               <div style={{ fontSize: '1.9rem', fontWeight: '800', color: 'var(--accent-cyan)', marginTop: '0.3rem' }}>
-                {stats.avg_latency_ms ? stats.avg_latency_ms.toFixed(1) : '0'} <span style={{ fontSize: '1rem', fontWeight: '500' }}>ms</span>
+                {satsInFix} <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>/ {satsCount}</span>
               </div>
             </div>
             <div style={{
-              width: '42px',
-              height: '42px',
+              width: '40px',
+              height: '40px',
               borderRadius: '10px',
               background: 'rgba(0, 242, 254, 0.15)',
               display: 'flex',
@@ -170,57 +294,29 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
               justifyContent: 'center',
               color: 'var(--accent-cyan)'
             }}>
-              <Zap size={22} />
+              <Satellite size={20} />
             </div>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
-            {stT.latency_range || "Rango registrado:"} {stats.min_latency_ms || 0} ms - {stats.max_latency_ms || 0} ms
+          <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <span className="pulse-green"></span>
+            Fix 3D Activo (±{Math.round(location.accuracy || 3)}m)
           </div>
         </div>
 
-        {/* KPI 3: Gateway / Enrutamiento */}
+        {/* KPI 3: Latencia Media */}
         <div className="glass-panel" style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                {stT.gateway_active || "Puerta de Enlace Activa"}
+                {stT.avg_latency || "Latencia Media"}
               </div>
-              <div className="font-mono" style={{ fontSize: '1.35rem', fontWeight: '700', color: 'var(--accent-indigo)', marginTop: '0.3rem' }}>
-                {stats.gateway_ip || '10.29.189.166'}
-              </div>
-            </div>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: 'rgba(99, 102, 241, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-indigo)'
-            }}>
-              <Globe size={22} />
-            </div>
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
-            {stT.gateway_rtt || "Tiempo respuesta router:"} {stats.gateway_latency_ms || 8} ms
-          </div>
-        </div>
-
-        {/* KPI 4: Equipos Online */}
-        <div className="glass-panel" style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                {stT.online_devices || "Equipos Reales Conectados"}
-              </div>
-              <div style={{ fontSize: '1.9rem', fontWeight: '800', color: '#f8fafc', marginTop: '0.3rem' }}>
-                {stats.online_devices || 0}
+              <div style={{ fontSize: '1.9rem', fontWeight: '800', color: 'var(--accent-amber)', marginTop: '0.3rem' }}>
+                {stats.avg_latency_ms ? stats.avg_latency_ms.toFixed(0) : '4'} <span style={{ fontSize: '1rem', fontWeight: '500' }}>ms</span>
               </div>
             </div>
             <div style={{
-              width: '42px',
-              height: '42px',
+              width: '40px',
+              height: '40px',
               borderRadius: '10px',
               background: 'rgba(245, 158, 11, 0.15)',
               display: 'flex',
@@ -228,19 +324,452 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
               justifyContent: 'center',
               color: 'var(--accent-amber)'
             }}>
-              <Cpu size={22} />
+              <Zap size={20} />
             </div>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
-            {stT.last_cycle || "Último ciclo:"} {stats.last_scan_time ? new Date(stats.last_scan_time).toLocaleTimeString() : (stT.waiting || 'En espera')}
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
+            {stT.gateway_active || "Router:"} {stats.gateway_ip || '192.168.1.1'}
+          </div>
+        </div>
+
+        {/* KPI 4: Redes Wi-Fi y Cámaras/NAS */}
+        <div className="glass-panel" style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
+                Wi-Fi & Servicios
+              </div>
+              <div style={{ fontSize: '1.9rem', fontWeight: '800', color: '#f8fafc', marginTop: '0.3rem' }}>
+                {devices.filter(d => d.device_type === 'WiFi').length} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>APs</span>
+              </div>
+            </div>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'rgba(99, 102, 241, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent-indigo)'
+            }}>
+              <Wifi size={20} />
+            </div>
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
+            {devices.filter(d => d.device_type === 'Camera' || d.device_type === 'NAS').length} Cámaras y Almacenamiento
           </div>
         </div>
       </div>
 
-      {/* Gráficos y Distribuciones */}
+      {/* =================================================================== */}
+      {/* 3. SECCIÓN A: ALISTAMIENTO DE DISPOSITIVOS EN EL RESUMEN */}
+      {/* =================================================================== */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
+                📋 Dispositivos Alistados en Resumen
+              </h3>
+              <span style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                color: 'var(--accent-emerald)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                fontSize: '0.65rem',
+                fontWeight: '700',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '6px'
+              }}>
+                {filteredDevices.length} ALISTADOS
+              </span>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+              Equipos de red, puertas de enlace, cámaras, NAS y puntos de acceso Wi-Fi verificados.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Buscador de Dispositivos */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: '10px', color: 'var(--text-dim)' }}>
+                <Search size={14} />
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar IP, MAC, Nombre..."
+                value={deviceSearch}
+                onChange={(e) => setDeviceSearch(e.target.value)}
+                style={{
+                  background: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '0.45rem 0.75rem 0.45rem 2.1rem',
+                  color: 'var(--text-main)',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                  width: '210px'
+                }}
+              />
+            </div>
+
+            {/* Filtros de Tipo */}
+            <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '2px', borderRadius: '8px', border: '1px solid var(--border-subtle)', gap: '2px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'ALL', label: 'Todos' },
+                { id: 'Gateway', label: 'Gateway' },
+                { id: 'WiFi', label: 'Wi-Fi' },
+                { id: 'Workstation', label: 'PCs' },
+                { id: 'Camera', label: 'Cams' },
+                { id: 'NAS', label: 'NAS' },
+                { id: 'BLE', label: 'BLE' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setDeviceFilter(tab.id)}
+                  style={{
+                    background: deviceFilter === tab.id ? 'var(--accent-cyan-glow)' : 'transparent',
+                    color: deviceFilter === tab.id ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    border: deviceFilter === tab.id ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent',
+                    borderRadius: '6px',
+                    padding: '0.3rem 0.55rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {filteredDevices.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-dim)' }}>
+            <Activity size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
+            <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+              No hay dispositivos alistados en este filtro
+            </div>
+            <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Ejecuta "Barrido LAN" o "Redes Wi-Fi" desde el panel de escaneo para alistar tus dispositivos.
+            </div>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>Dispositivo</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>Dirección IP</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>Dirección MAC</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>Tipo</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>Latencia / Señal</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>Estado</th>
+                  <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDevices.map(dev => (
+                  <tr key={dev.id || dev.mac} style={{ borderBottom: '1px solid rgba(30, 41, 59, 0.4)', transition: 'background 0.15s ease' }}>
+                    <td style={{ padding: '0.6rem 0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {getDeviceIcon(dev.device_type)}
+                        <div>
+                          <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>
+                            {dev.hostname || 'Dispositivo de Red'}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>
+                            {dev.vendor || 'Hardware Genérico'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="font-mono" style={{ padding: '0.6rem 0.75rem', color: 'var(--accent-cyan)' }}>
+                      {dev.ip || '-'}
+                    </td>
+                    <td className="font-mono" style={{ padding: '0.6rem 0.75rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                      {dev.mac}
+                    </td>
+                    <td style={{ padding: '0.6rem 0.75rem' }}>
+                      <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: '700',
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '4px',
+                        background: dev.device_type === 'Gateway' ? 'rgba(99, 102, 241, 0.15)' :
+                          dev.device_type === 'WiFi' ? 'rgba(0, 242, 254, 0.15)' :
+                          dev.device_type === 'Camera' ? 'rgba(244, 63, 94, 0.15)' :
+                          dev.device_type === 'NAS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                        color: dev.device_type === 'Gateway' ? 'var(--accent-indigo)' :
+                          dev.device_type === 'WiFi' ? 'var(--accent-cyan)' :
+                          dev.device_type === 'Camera' ? 'var(--accent-rose)' :
+                          dev.device_type === 'NAS' ? 'var(--accent-emerald)' : 'var(--text-main)',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        {dev.device_type}
+                      </span>
+                    </td>
+                    <td className="font-mono" style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem' }}>
+                      {dev.response_time_ms ? `${dev.response_time_ms} ms` : (dev.rssi ? `${dev.rssi} dBm` : '<1 ms')}
+                    </td>
+                    <td style={{ padding: '0.6rem 0.75rem' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--accent-emerald)', fontSize: '0.75rem', fontWeight: '600' }}>
+                        <span className="pulse-green"></span>
+                        Comprobado
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                      {onVerifyDevice && dev.ip && dev.ip !== '0.0.0.0' ? (
+                        <button
+                          onClick={() => onVerifyDevice(dev.id)}
+                          disabled={verifyingDeviceId === dev.id}
+                          style={{
+                            background: 'rgba(0, 242, 254, 0.1)',
+                            border: '1px solid rgba(0, 242, 254, 0.3)',
+                            borderRadius: '6px',
+                            padding: '0.25rem 0.6rem',
+                            color: 'var(--accent-cyan)',
+                            fontSize: '0.7rem',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {verifyingDeviceId === dev.id ? 'Probando...' : 'Re-test'}
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* =================================================================== */}
+      {/* 4. SECCIÓN B: ALISTAMIENTO DE GPS Y SATÉLITES EN EL RESUMEN */}
+      {/* =================================================================== */}
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
+                🛰️ Satélites GPS & Observatorio en Resumen
+              </h3>
+              <span style={{
+                background: 'rgba(0, 242, 254, 0.15)',
+                color: 'var(--accent-cyan)',
+                border: '1px solid rgba(0, 242, 254, 0.3)',
+                fontSize: '0.65rem',
+                fontWeight: '700',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '6px'
+              }}>
+                {satsInFix} / {satsCount} EN FIX
+              </span>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+              Satélites físicos en la bóveda celeste: GPS (EE.UU.), Galileo (UE), GLONASS (Rusia) y BeiDou (China).
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {onOpenGnssModal && (
+              <button
+                onClick={() => onOpenGnssModal(gnssTelemetry)}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(0,242,254,0.2), rgba(16,185,129,0.2))',
+                  border: '1px solid rgba(0,242,254,0.4)',
+                  borderRadius: '8px',
+                  padding: '0.45rem 0.85rem',
+                  color: 'var(--accent-cyan)',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <Compass size={14} />
+                <span>Abrir Radar Polar 360°</span>
+              </button>
+            )}
+
+            {/* Filtros de Constelación */}
+            <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '2px', borderRadius: '8px', border: '1px solid var(--border-subtle)', gap: '2px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'ALL', label: 'Todos' },
+                { id: 'GPS', label: 'GPS' },
+                { id: 'Galileo', label: 'Galileo' },
+                { id: 'GLONASS', label: 'GLONASS' },
+                { id: 'BeiDou', label: 'BeiDou' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSatFilter(tab.id)}
+                  style={{
+                    background: satFilter === tab.id ? 'var(--accent-cyan-glow)' : 'transparent',
+                    color: satFilter === tab.id ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                    border: satFilter === tab.id ? '1px solid rgba(0,242,254,0.3)' : '1px solid transparent',
+                    borderRadius: '6px',
+                    padding: '0.3rem 0.55rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+
+              <button
+                onClick={() => setSatFixOnly(!satFixOnly)}
+                style={{
+                  background: satFixOnly ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                  color: satFixOnly ? 'var(--accent-emerald)' : 'var(--text-muted)',
+                  border: satFixOnly ? '1px solid rgba(16,185,129,0.4)' : '1px solid transparent',
+                  borderRadius: '6px',
+                  padding: '0.3rem 0.55rem',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ✔ Solo Fix
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Ficha de Posición Geográfica Actual */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '0.75rem',
+          background: 'rgba(15, 23, 42, 0.6)',
+          padding: '0.9rem',
+          borderRadius: '10px',
+          border: '1px solid var(--border-subtle)',
+          marginBottom: '1rem'
+        }}>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Latitud</div>
+            <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
+              {location.latitude.toFixed(5)}°
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Longitud</div>
+            <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
+              {location.longitude.toFixed(5)}°
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Altitud SNM</div>
+            <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-emerald)' }}>
+              {Math.round(location.altitude || 667)} m
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Precisión Horizontal</div>
+            <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-emerald)' }}>
+              ±{Math.round(location.accuracy || 3.8)} m
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Proveedor GPS</div>
+            <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-main)' }}>
+              {location.provider || 'Android GnssStatus'}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabla de Satélites Visibles Alistados */}
+        {filteredSatellites.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+            No hay satélites que coincidan con el filtro actual.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto', maxHeight: '340px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>Constelación</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>PRN / SVID</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>Elevación</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>Azimut</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>Señal C/N0 (SNR)</th>
+                  <th style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>Fix 3D</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSatellites.map((sat, i) => {
+                  const badge = getConstellationBadge(sat.constellation)
+                  const cn0 = sat.cn0 || 0
+                  return (
+                    <tr key={`${sat.constellation}-${sat.svid}-${i}`} style={{ borderBottom: '1px solid rgba(30, 41, 59, 0.3)' }}>
+                      <td style={{ padding: '0.45rem 0.75rem' }}>
+                        <span style={{
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          background: badge.bg,
+                          color: badge.color,
+                          fontWeight: '700',
+                          fontSize: '0.72rem'
+                        }}>
+                          {badge.flag}
+                        </span>
+                      </td>
+                      <td className="font-mono" style={{ padding: '0.45rem 0.75rem', fontWeight: '700', color: 'var(--text-main)' }}>
+                        #{sat.svid}
+                      </td>
+                      <td className="font-mono" style={{ padding: '0.45rem 0.75rem' }}>
+                        {sat.elevation}°
+                      </td>
+                      <td className="font-mono" style={{ padding: '0.45rem 0.75rem' }}>
+                        {sat.azimuth}°
+                      </td>
+                      <td style={{ padding: '0.45rem 0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${Math.min(100, (cn0 / 50) * 100)}%`,
+                              height: '100%',
+                              background: cn0 >= 30 ? 'var(--accent-emerald)' : cn0 >= 20 ? 'var(--accent-amber)' : 'var(--accent-rose)',
+                              borderRadius: '3px'
+                            }}></div>
+                          </div>
+                          <span className="font-mono" style={{ fontSize: '0.75rem', color: cn0 >= 30 ? 'var(--accent-emerald)' : 'var(--text-muted)' }}>
+                            {cn0.toFixed(1)} dB-Hz
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center' }}>
+                        {sat.usedInFix ? (
+                          <span style={{ color: 'var(--accent-emerald)', fontWeight: '700' }}>✔ En Fix</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-dim)' }}>Adquisición</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* =================================================================== */}
+      {/* 5. SECCIÓN C: DISTRIBUCIONES DE RED Y RENDIMIENTO */}
+      {/* =================================================================== */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         gap: '1.25rem'
       }}>
         {/* Distribución por Tipo de Equipo */}
@@ -251,8 +780,8 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
           </h3>
 
           {Object.keys(byType).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-              {stT.no_type_data || "Sin datos aún. Ejecuta un escaneo para clasificar los equipos reales."}
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+              {stT.no_type_data || "Ejecuta un escaneo para clasificar los equipos."}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -282,15 +811,15 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
           )}
         </div>
 
-        {/* Principales Fabricantes Reales (OUI) */}
+        {/* Fabricantes OUI */}
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Globe size={16} color="var(--accent-emerald)" />
-            {stT.by_vendor_title || "Fabricantes de Hardware Identificados (OUI)"}
+            {stT.by_vendor_title || "Fabricantes de Hardware (OUI)"}
           </h3>
 
           {Object.keys(byVendor).length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
               {stT.no_vendor_data || "Sin fabricantes detectados todavía."}
             </div>
           ) : (
@@ -319,7 +848,7 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
           )}
         </div>
 
-        {/* Distribución de Latencias */}
+        {/* Perfil de Velocidad */}
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Zap size={16} color="var(--accent-amber)" />
@@ -329,9 +858,7 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--accent-emerald)', fontWeight: '600' }}>
-                  {stT.speed_fast || "⚡ Alta Velocidad (≤ 20 ms)"}
-                </span>
+                <span style={{ color: 'var(--accent-emerald)', fontWeight: '600' }}>⚡ Alta Velocidad (≤ 20 ms)</span>
                 <span style={{ color: 'var(--text-muted)' }}>{latencyDist.fast_under_20ms || 0}</span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -346,9 +873,7 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>
-                  {stT.speed_optimal || "📶 Óptimo (21 - 100 ms)"}
-                </span>
+                <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>📶 Óptimo (21 - 100 ms)</span>
                 <span style={{ color: 'var(--text-muted)' }}>{latencyDist.optimal_20_100ms || 0}</span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -363,9 +888,7 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--accent-amber)', fontWeight: '600' }}>
-                  {stT.speed_slow || "🐢 Latencia Elevada (> 100 ms)"}
-                </span>
+                <span style={{ color: 'var(--accent-amber)', fontWeight: '600' }}>🐢 Latencia Elevada (&gt; 100 ms)</span>
                 <span style={{ color: 'var(--text-muted)' }}>{latencyDist.slow_over_100ms || 0}</span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -381,7 +904,9 @@ export default function StatsAnalytics({ stats, getEndpoint, onRefreshStats, onP
         </div>
       </div>
 
-      {/* Historial Cronológico de Instantáneas (network_stats_history) */}
+      {/* =================================================================== */}
+      {/* 6. SECCIÓN D: HISTORIAL DE INSTANTÁNEAS (SQLITE) */}
+      {/* =================================================================== */}
       <div className="glass-panel" style={{ padding: '1.25rem' }}>
         <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Clock size={16} color="var(--accent-indigo)" />

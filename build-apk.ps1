@@ -24,17 +24,17 @@ if (-not $env:ANDROID_HOME) {
 
 # 2. Compilar assets del Frontend (React + Vite)
 Write-Host "[1/3] Compilando frontend React y sincronizando con Capacitor..." -ForegroundColor Yellow
-Set-Location frontend
+Set-Location "$PSScriptRoot\frontend"
 npm run build
 npx cap sync android
-Set-Location ..
+Set-Location "$PSScriptRoot"
 
 # 3. Compilar APK y AAB con Gradle
 Write-Host "[2/3] Compilando binarios APK y AAB con Gradle wrapper..." -ForegroundColor Yellow
-Set-Location frontend\android
+Set-Location "$PSScriptRoot\frontend\android"
 .\gradlew.bat assembleDebug bundleDebug
 $gradleStatus = $LASTEXITCODE
-Set-Location ..\..
+Set-Location "$PSScriptRoot"
 
 if ($gradleStatus -ne 0) {
     Write-Host "[X] Error durante la compilacion de Gradle." -ForegroundColor Red
@@ -42,11 +42,11 @@ if ($gradleStatus -ne 0) {
 }
 
 # 4. Copiar APK y AAB a la raiz del proyecto
-$apkSource = "frontend\android\app\build\outputs\apk\debug\app-debug.apk"
-$apkDest = "Cyberguru.apk"
+$apkSource = "$PSScriptRoot\frontend\android\app\build\outputs\apk\debug\app-debug.apk"
+$apkDest = "$PSScriptRoot\Cyberguru.apk"
 
-$aabSource = "frontend\android\app\build\outputs\bundle\debug\app-debug.aab"
-$aabDest = "Cyberguru.aab"
+$aabSource = "$PSScriptRoot\frontend\android\app\build\outputs\bundle\debug\app-debug.aab"
+$aabDest = "$PSScriptRoot\Cyberguru.aab"
 
 if (Test-Path $apkSource) {
     Copy-Item $apkSource -Destination $apkDest -Force
@@ -54,6 +54,8 @@ if (Test-Path $apkSource) {
     $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
     Write-Host "[3/3] APK compilada con exito!" -ForegroundColor Green
     Write-Host "Ubicacion del APK: $apkDest ($sizeMB MB)" -ForegroundColor Cyan
+} else {
+    Write-Host "[!] No se encontro el archivo generado en $apkSource" -ForegroundColor Red
 }
 
 if (Test-Path $aabSource) {

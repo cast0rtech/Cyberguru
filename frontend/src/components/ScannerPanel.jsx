@@ -27,12 +27,22 @@ export default function ScannerPanel({ onTriggerScan, isScanning, t }) {
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             className="btn btn-secondary"
-            onClick={() => handleScan('arp')}
+            onClick={() => handleScan('wifi')}
             disabled={isScanning}
-            title={scT.arp_title || "Escanear tabla ARP de la red local"}
+            title={scT.wifi_title || "Escanear redes Wi-Fi circundantes con antena y tarjeta de radio"}
           >
             <Wifi size={15} color="var(--accent-cyan)" />
-            <span>{scT.arp_btn || "Barrido ARP"}</span>
+            <span>{scT.wifi_btn || "Redes Wi-Fi"}</span>
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => handleScan('arp')}
+            disabled={isScanning}
+            title={scT.arp_title || "Escanear subred y tabla ARP de la red local"}
+          >
+            <Activity size={15} color="var(--accent-emerald)" />
+            <span>{scT.arp_btn || "Barrido LAN"}</span>
           </button>
 
           <button

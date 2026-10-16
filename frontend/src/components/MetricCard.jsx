@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function MetricCard({ title, value, subtitle, icon: Icon, color = "cyan", trend }) {
+export default function MetricCard({ title, value, subtitle, icon: Icon, color = "cyan", trend, onClick }) {
   const colorMap = {
     cyan: { text: "var(--accent-cyan)", border: "rgba(0, 242, 254, 0.3)", bg: "rgba(0, 242, 254, 0.1)" },
     emerald: { text: "var(--accent-emerald)", border: "rgba(16, 185, 129, 0.3)", bg: "rgba(16, 185, 129, 0.1)" },
@@ -12,7 +12,36 @@ export default function MetricCard({ title, value, subtitle, icon: Icon, color =
   const currentTheme = colorMap[color] || colorMap.cyan
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', overflow: 'hidden' }}>
+    <div
+      className="glass-panel"
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      style={{
+        padding: '1.25rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.75rem',
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease'
+      }}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.borderColor = currentTheme.border
+          e.currentTarget.style.boxShadow = `0 4px 20px ${currentTheme.bg}`
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = 'none'
+          e.currentTarget.style.borderColor = 'var(--border-subtle)'
+          e.currentTarget.style.boxShadow = 'none'
+        }
+      }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           {title}

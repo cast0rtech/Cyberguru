@@ -34,6 +34,9 @@ export default function Header({ isScanning, lastScanTime, lang = 'es', onLangCh
             <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(0, 242, 254, 0.1)', color: 'var(--accent-cyan)', border: '1px solid rgba(0, 242, 254, 0.3)', fontWeight: '600' }}>
               {headerT.soc_agent || "SOC AGENT"}
             </span>
+            <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-emerald)', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: '600' }}>
+              v1.1.0
+            </span>
           </div>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             {headerT.sensor_desc || "Sensor de Red & Proximidad BLE • network_mode: host"}

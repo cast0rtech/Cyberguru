@@ -12,8 +12,9 @@ export const translations = {
     },
     tabs: {
       inventory: "Inventario Real",
+      summary: "Resumen & GPS",
       stats: "Base de Datos & Estadísticas",
-      offline_warn: "Desconectado del agente local (Puerto 8080)"
+      offline_warn: "Modo Autónomo Móvil (Red Local & Sensores)"
     },
     metrics: {
       real_devices: "Equipos Reales",
@@ -32,8 +33,10 @@ export const translations = {
     scanner: {
       title: "Centro de Control de Escaneo & Rastreo",
       desc: "Inspección multi-vector: ARP LAN, sondeo SNMP, radar BLE, cámaras IP, NAS y sensores inalámbricos (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)",
-      arp_btn: "Barrido ARP",
-      arp_title: "Escanear tabla ARP de la red local",
+      wifi_btn: "Redes Wi-Fi",
+      wifi_title: "Escanear redes Wi-Fi circundantes con antena y tarjeta de radio",
+      arp_btn: "Barrido LAN",
+      arp_title: "Escanear subred y tabla ARP de la red local",
       snmp_btn: "Sondeo SNMP",
       snmp_title: "Sondear servicios SNMP expuestos en puerto 161",
       ble_btn: "Radar BLE",
@@ -184,8 +187,9 @@ export const translations = {
     },
     tabs: {
       inventory: "Real Inventory",
+      summary: "Summary & GPS",
       stats: "Database & Statistics",
-      offline_warn: "Disconnected from local agent (Port 8080)"
+      offline_warn: "Standalone Mobile Mode (Local Net & Sensors)"
     },
     metrics: {
       real_devices: "Real Devices",
@@ -204,8 +208,10 @@ export const translations = {
     scanner: {
       title: "Scan & Tracking Control Center",
       desc: "Multi-vector inspection: LAN ARP, SNMP probe, BLE radar, IP cameras, NAS, and wireless sensors (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)",
-      arp_btn: "ARP Sweep",
-      arp_title: "Scan local network ARP table",
+      wifi_btn: "Wi-Fi Networks",
+      wifi_title: "Scan surrounding Wi-Fi networks with radio adapter",
+      arp_btn: "LAN Sweep",
+      arp_title: "Scan local subnet and ARP table",
       snmp_btn: "SNMP Probe",
       snmp_title: "Probe exposed SNMP services on port 161",
       ble_btn: "BLE Radar",
@@ -356,8 +362,9 @@ export const translations = {
     },
     tabs: {
       inventory: "Echtes Inventar",
+      summary: "Übersicht & GPS",
       stats: "Datenbank & Statistiken",
-      offline_warn: "Getrennt vom lokalen Agenten (Port 8080)"
+      offline_warn: "Eigenständiger Mobilmodus (Lokales Netz & Sensoren)"
     },
     metrics: {
       real_devices: "Echte Geräte",
@@ -376,8 +383,10 @@ export const translations = {
     scanner: {
       title: "Scan- & Tracking-Kontrollzentrum",
       desc: "Multi-Vektor-Inspektion: LAN-ARP, SNMP, BLE-Radar, IP-Kameras, NAS und Funksensoren (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)",
-      arp_btn: "ARP-Suchlauf",
-      arp_title: "Lokale ARP-Tabelle des Netzwerks scannen",
+      wifi_btn: "WLAN-Netze",
+      wifi_title: "Umliegende WLAN-Netzwerke mit Funkkarte scannen",
+      arp_btn: "LAN-Suchlauf",
+      arp_title: "Lokales Subnetz und ARP-Tabelle scannen",
       snmp_btn: "SNMP-Sonde",
       snmp_title: "Exponierte SNMP-Dienste auf Port 161 abfragen",
       ble_btn: "BLE-Radar",

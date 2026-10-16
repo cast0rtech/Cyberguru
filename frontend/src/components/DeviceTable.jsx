@@ -86,6 +86,16 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
     return date.toLocaleTimeString()
   }
 
+  const exportAudit = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredDevices, null, 2))
+    const downloadAnchor = document.createElement('a')
+    downloadAnchor.setAttribute("href", dataStr)
+    downloadAnchor.setAttribute("download", `cyberguru_audit_${new Date().toISOString().slice(0,10)}.json`)
+    document.body.appendChild(downloadAnchor)
+    downloadAnchor.click()
+    downloadAnchor.remove()
+  }
+
   return (
     <div className="glass-panel" style={{ padding: '1.25rem', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -116,27 +126,48 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Barra de Búsqueda */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <span style={{ position: 'absolute', left: '10px', color: 'var(--text-dim)' }}>
-              <Search size={14} />
-            </span>
-            <input
-              type="text"
-              placeholder={tbT.search_placeholder || "Buscar IP, MAC, Fabricante..."}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+          {/* Barra de Búsqueda y Exportación */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: '10px', color: 'var(--text-dim)' }}>
+                <Search size={14} />
+              </span>
+              <input
+                type="text"
+                placeholder={tbT.search_placeholder || "Buscar IP, MAC, Fabricante..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  background: 'rgba(15, 23, 42, 0.8)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '0.45rem 0.75rem 0.45rem 2.1rem',
+                  color: 'var(--text-main)',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                  width: '220px'
+                }}
+              />
+            </div>
+            <button
+              onClick={exportAudit}
+              title="Exportar inventario de auditoría en JSON"
               style={{
-                background: 'rgba(15, 23, 42, 0.8)',
+                background: 'rgba(30, 41, 59, 0.8)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '8px',
-                padding: '0.45rem 0.75rem 0.45rem 2.1rem',
-                color: 'var(--text-main)',
-                fontSize: '0.8rem',
-                outline: 'none',
-                width: '210px'
+                padding: '0.45rem 0.75rem',
+                color: 'var(--accent-cyan)',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem'
               }}
-            />
+            >
+              📥 Exportar
+            </button>
           </div>
 
           {/* Filtros de Pestaña */}
