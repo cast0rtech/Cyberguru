@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import {
   Search, Wifi, Server, Bluetooth, Radio, Camera, HardDrive, Globe, Cpu, Smartphone,
-  CheckCircle, RefreshCw, Zap, Zigbee, ZWave, Thread, UWB, NFC, GPS, LPWAN, MapPin
+  CheckCircle, RefreshCw, Zap, Zigbee, ZWave, Thread, UWB, NFC, GPS, LPWAN, MapPin, Satellite
 } from './Icons'
 
-export default function DeviceTable({ devices, loading, onVerifyDevice, verifyingDeviceId, t }) {
+export default function DeviceTable({ devices, loading, onVerifyDevice, verifyingDeviceId, onOpenGnssModal, t }) {
   const [filterType, setFilterType] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -369,32 +369,59 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                       </div>
                     </td>
 
-                    {/* Acción: Re-comprobar individual */}
+                    {/* Acción: Re-comprobar individual o Satélites GNSS */}
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-                      {onVerifyDevice && dev.ip && dev.ip !== '0.0.0.0' && (
-                        <button
-                          onClick={() => onVerifyDevice(dev.id)}
-                          disabled={isVerifying}
-                          title={tbT.verify_btn || "Volver a comprobar este dispositivo en tiempo real"}
-                          style={{
-                            background: isVerifying ? 'rgba(0, 242, 254, 0.2)' : 'rgba(30, 41, 59, 0.8)',
-                            border: '1px solid var(--border-subtle)',
-                            color: isVerifying ? 'var(--accent-cyan)' : 'var(--text-main)',
-                            borderRadius: '6px',
-                            padding: '0.3rem 0.6rem',
-                            fontSize: '0.7rem',
-                            fontWeight: '600',
-                            cursor: isVerifying ? 'wait' : 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <RefreshCw size={12} className={isVerifying ? 'animate-spin' : ''} />
-                          {isVerifying ? (tbT.verifying_btn || 'Comprobando') : (tbT.verify_btn || 'Comprobar')}
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {dev.device_type === 'GPS' && onOpenGnssModal && (
+                          <button
+                            onClick={() => onOpenGnssModal(dev.gnss_telemetry || null)}
+                            title="Ver satélites visibles y posición exacta en el radar polar"
+                            style={{
+                              background: 'rgba(6, 182, 212, 0.2)',
+                              border: '1px solid rgba(0, 242, 254, 0.45)',
+                              color: 'var(--accent-cyan)',
+                              borderRadius: '6px',
+                              padding: '0.3rem 0.6rem',
+                              fontSize: '0.7rem',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              transition: 'all 0.2s ease',
+                              boxShadow: '0 0 10px rgba(0, 242, 254, 0.2)'
+                            }}
+                          >
+                            <Satellite size={12} className="animate-pulse" />
+                            <span>Satélites</span>
+                          </button>
+                        )}
+
+                        {onVerifyDevice && dev.ip && dev.ip !== '0.0.0.0' && dev.device_type !== 'GPS' && (
+                          <button
+                            onClick={() => onVerifyDevice(dev.id)}
+                            disabled={isVerifying}
+                            title={tbT.verify_btn || "Volver a comprobar este dispositivo en tiempo real"}
+                            style={{
+                              background: isVerifying ? 'rgba(0, 242, 254, 0.2)' : 'rgba(30, 41, 59, 0.8)',
+                              border: '1px solid var(--border-subtle)',
+                              color: isVerifying ? 'var(--accent-cyan)' : 'var(--text-main)',
+                              borderRadius: '6px',
+                              padding: '0.3rem 0.6rem',
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              cursor: isVerifying ? 'wait' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <RefreshCw size={12} className={isVerifying ? 'animate-spin' : ''} />
+                            {isVerifying ? (tbT.verifying_btn || 'Comprobando') : (tbT.verify_btn || 'Comprobar')}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

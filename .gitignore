@@ -5,7 +5,7 @@ bin/
 *.dll
 *.so
 *.dylib
-cyberguru
+/cyberguru
 
 # Dependencias y compilaciones de Node/React
 node_modules/

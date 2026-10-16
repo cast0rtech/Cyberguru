@@ -14,7 +14,8 @@ import {
   MapPin,
   Radio,
   Zap,
-  Shield
+  Shield,
+  Satellite
 } from './Icons'
 import {
   checkClientCapabilities,
@@ -28,7 +29,7 @@ import {
   scanLPWAN
 } from '../utils/sensorScanner'
 
-export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, isScanning, t }) {
+export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, onOpenGnssModal, isScanning, t }) {
   const [activeSensor, setActiveSensor] = useState(null)
   const [sensorStatus, setSensorStatus] = useState({})
   const [lastMessage, setLastMessage] = useState(null)
@@ -92,7 +93,12 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, is
       if (result) {
         setSensorStatus(prev => ({
           ...prev,
-          [type]: { count: (prev[type]?.count || 0) + 1, last: new Date().toLocaleTimeString(), lastDevice: result.hostname }
+          [type]: {
+            count: (prev[type]?.count || 0) + 1,
+            last: new Date().toLocaleTimeString(),
+            lastDevice: result.hostname,
+            gnss_telemetry: result.gnss_telemetry || null
+          }
         }))
 
         setLastMessage({
@@ -425,32 +431,59 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, is
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255, 255, 255, 0.07)', paddingTop: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255, 255, 255, 0.07)', paddingTop: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>
                     {stat?.last ? `Último: ${stat.last}` : 'Sensor disponible'}
                   </div>
 
-                  <button
-                    onClick={() => handleRunSensor(sensor.id)}
-                    disabled={activeSensor !== null || isScanning}
-                    style={{
-                      background: isCurrentlyScanning ? 'var(--accent-cyan)' : 'rgba(15, 23, 42, 0.9)',
-                      color: isCurrentlyScanning ? '#070a12' : sensor.color,
-                      border: `1px solid ${sensor.border}`,
-                      borderRadius: '6px',
-                      padding: '0.3rem 0.65rem',
-                      fontSize: '0.72rem',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <IconComp size={12} className={isCurrentlyScanning ? "animate-spin" : ""} />
-                    <span>{isCurrentlyScanning ? 'Rastreando' : 'Escanear'}</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {sensor.id === 'gps' && onOpenGnssModal && (
+                      <button
+                        onClick={() => onOpenGnssModal(stat?.gnss_telemetry || null)}
+                        title="Ver satélites visibles y posición actual en el radar polar"
+                        style={{
+                          background: 'rgba(6, 182, 212, 0.2)',
+                          color: 'var(--accent-cyan)',
+                          border: '1px solid rgba(0, 242, 254, 0.45)',
+                          borderRadius: '6px',
+                          padding: '0.3rem 0.55rem',
+                          fontSize: '0.72rem',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          transition: 'all 0.15s ease',
+                          boxShadow: '0 0 10px rgba(0, 242, 254, 0.2)'
+                        }}
+                      >
+                        <Satellite size={12} className="animate-pulse" />
+                        <span>Satélites</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleRunSensor(sensor.id)}
+                      disabled={activeSensor !== null || isScanning}
+                      style={{
+                        background: isCurrentlyScanning ? 'var(--accent-cyan)' : 'rgba(15, 23, 42, 0.9)',
+                        color: isCurrentlyScanning ? '#070a12' : sensor.color,
+                        border: `1px solid ${sensor.border}`,
+                        borderRadius: '6px',
+                        padding: '0.3rem 0.65rem',
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <IconComp size={12} className={isCurrentlyScanning ? "animate-spin" : ""} />
+                      <span>{isCurrentlyScanning ? 'Rastreando' : 'Escanear'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )

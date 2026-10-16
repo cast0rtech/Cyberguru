@@ -6,6 +6,7 @@ import SensorRadarPanel from './components/SensorRadarPanel'
 import DeviceTable from './components/DeviceTable'
 import AlertFeed from './components/AlertFeed'
 import StatsAnalytics from './components/StatsAnalytics'
+import GnssSkyViewModal from './components/GnssSkyViewModal'
 import { translations } from './i18n'
 import { Wifi, Server, Bluetooth, AlertTriangle, Activity, Camera, HardDrive, CheckCircle, Zap, Globe, BarChart } from './components/Icons'
 
@@ -57,6 +58,13 @@ export default function App() {
   const [verifyingDeviceId, setVerifyingDeviceId] = useState(null)
   const [serverUrl, setServerUrl] = useState(() => localStorage.getItem('cyberguru_server_url') || '')
   const [isOfflineMode, setIsOfflineMode] = useState(false)
+  const [isGnssModalOpen, setIsGnssModalOpen] = useState(false)
+  const [gnssModalData, setGnssModalData] = useState(null)
+
+  const handleOpenGnssModal = (telemetryData = null) => {
+    setGnssModalData(telemetryData)
+    setIsGnssModalOpen(true)
+  }
 
   const getEndpoint = (path) => {
     if (serverUrl && serverUrl.trim() !== '') {
@@ -340,6 +348,7 @@ export default function App() {
             <SensorRadarPanel
               onDeviceDiscovered={handleDeviceDiscovered}
               onTriggerScan={handleTriggerScan}
+              onOpenGnssModal={handleOpenGnssModal}
               isScanning={isScanning}
               t={t}
             />
@@ -356,6 +365,7 @@ export default function App() {
                   loading={loading}
                   onVerifyDevice={handleVerifyDevice}
                   verifyingDeviceId={verifyingDeviceId}
+                  onOpenGnssModal={handleOpenGnssModal}
                   t={t}
                 />
               </div>
@@ -376,6 +386,14 @@ export default function App() {
             t={t}
           />
         )}
+
+        {/* Modal Interactivo de Bóveda Satelital GNSS & Posición */}
+        <GnssSkyViewModal
+          isOpen={isGnssModalOpen}
+          onClose={() => setIsGnssModalOpen(false)}
+          initialData={gnssModalData}
+          t={t}
+        />
       </main>
 
       <footer style={{ textAlign: 'center', marginTop: '2.5rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
