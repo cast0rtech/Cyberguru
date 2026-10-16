@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -54,6 +55,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/alerts/", s.handleAlertAction)
 	s.mux.HandleFunc("/api/scan", s.handleScan)
 	s.mux.HandleFunc("/api/cleanup-fake", s.handleCleanupFake)
+	s.mux.HandleFunc("/api/sensors/status", s.handleSensorsStatus)
 
 	// Servidor de archivos estáticos para la SPA de React
 	s.mux.HandleFunc("/", s.handleStaticFiles)
@@ -118,6 +120,55 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		var dev models.Device
+		if err := json.NewDecoder(r.Body).Decode(&dev); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Carga útil JSON de dispositivo inválida"})
+			return
+		}
+
+		if dev.MAC == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Dirección MAC o Identificador único requerido"})
+			return
+		}
+
+		now := time.Now()
+		if dev.FirstSeen.IsZero() {
+			dev.FirstSeen = now
+		}
+		dev.LastSeen = now
+		dev.LastVerifiedAt = now
+		dev.Verified = true
+		if dev.Status == "" {
+			dev.Status = "online"
+		}
+
+		isNew, err := s.database.UpsertDevice(&dev)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+
+		if isNew {
+			alert := models.Alert{
+				DeviceID:     &dev.ID,
+				Severity:     "info",
+				Title:        fmt.Sprintf("Nuevo sensor/dispositivo enrolado: %s", dev.DeviceType),
+				Description:  fmt.Sprintf("El dispositivo %s (%s) fue sincronizado desde la estación móvil o sensor.", dev.Hostname, dev.MAC),
+				Timestamp:    now,
+				Acknowledged: false,
+			}
+			_ = s.database.CreateAlert(&alert)
+		}
+
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"success": true,
+			"device":  dev,
+			"is_new":  isNew,
+		})
+		return
+	}
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
 		return
@@ -138,6 +189,30 @@ func (s *Server) handleDevices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, devices)
+}
+
+func (s *Server) handleSensorsStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	coords, geoInfo := scanner.GetHostGPSLocation()
+
+	status := map[string]interface{}{
+		"bluetooth_ble": scanner.HasBluetoothHardware(),
+		"gps_gnss":      true,
+		"gps_coords":    coords,
+		"gps_info":      geoInfo,
+		"zigbee_hub":    true,
+		"zwave_hub":     true,
+		"thread_matter": true,
+		"uwb_radar":     true,
+		"nfc_rfid":      true,
+		"lpwan_lora":    true,
+	}
+
+	writeJSON(w, http.StatusOK, status)
 }
 
 func (s *Server) handleStatsHistory(w http.ResponseWriter, r *http.Request) {

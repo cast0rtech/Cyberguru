@@ -9,13 +9,13 @@ type Device struct {
 	IP                 string    `json:"ip"`
 	Hostname           string    `json:"hostname"`
 	Vendor             string    `json:"vendor"`
-	DeviceType         string    `json:"device_type"` // "Gateway/Router", "Workstation/PC", "Ethernet", "WiFi", "SNMP", "BLE", "Camera", "NAS"
+	DeviceType         string    `json:"device_type"` // "Gateway/Router", "Workstation/PC", "Ethernet", "WiFi", "SNMP", "BLE", "Camera", "NAS", "Zigbee", "Z-Wave", "Thread", "UWB", "NFC", "GPS", "LPWAN"
 	OSInfo             string    `json:"os_info"`
 	Services           string    `json:"services"` // Puertos y protocolos detectados (ej: "DNS (53), HTTP (80)")
 	FirstSeen          time.Time `json:"first_seen"`
 	LastSeen           time.Time `json:"last_seen"`
 	Status             string    `json:"status"` // "online", "offline"
-	RSSI               int       `json:"rssi"`   // Señal en dBm para BLE / WiFi (ej. -65)
+	RSSI               int       `json:"rssi"`   // Señal en dBm para BLE / WiFi / Zigbee / LoRa (ej. -65)
 	SNMPEnabled        bool      `json:"snmp_enabled"`
 	Verified           bool      `json:"verified"`            // true solo si pasó la comprobación activa real
 	VerificationMethod string    `json:"verification_method"` // Método de comprobación (ej. "ICMP Ping (6ms)", "TCP Puerto 53")
@@ -24,6 +24,7 @@ type Device struct {
 	LastVerifiedAt     time.Time `json:"last_verified_at"`
 	ChecksPassed       int       `json:"checks_passed"`
 	ChecksFailed       int       `json:"checks_failed"`
+	Coordinates        string    `json:"coordinates,omitempty"` // Coordenadas GPS/GNSS (Lat, Lon)
 }
 
 // DeviceEvent registra un hito o cambio de estado de un dispositivo en el tiempo.
@@ -89,6 +90,13 @@ type Stats struct {
 	BLEDevices           int            `json:"ble_devices"`
 	CameraDevices        int            `json:"camera_devices"`
 	NASDevices           int            `json:"nas_devices"`
+	ZigbeeDevices        int            `json:"zigbee_devices"`
+	ZWaveDevices         int            `json:"zwave_devices"`
+	ThreadDevices        int            `json:"thread_devices"`
+	UWBDevices           int            `json:"uwb_devices"`
+	NFCDevices           int            `json:"nfc_devices"`
+	GPSDevices           int            `json:"gps_devices"`
+	LPWANDevices         int            `json:"lpwan_devices"`
 	TotalAlerts          int            `json:"total_alerts"`
 	PendingAlerts        int            `json:"pending_alerts"`
 	CriticalAlerts       int            `json:"critical_alerts"`
@@ -101,6 +109,6 @@ type Stats struct {
 
 // ScanRequest es la carga útil para invocar un escaneo manual vía API.
 type ScanRequest struct {
-	ScanType string `json:"scan_type"` // "arp", "snmp", "ble", "iot", "all"
+	ScanType string `json:"scan_type"` // "arp", "snmp", "ble", "iot", "wireless", "zigbee", "zwave", "thread", "uwb", "nfc", "gps", "lpwan", "all"
 	Subnet   string `json:"subnet"`    // Opcional, ej: "192.168.1.0/24"
 }

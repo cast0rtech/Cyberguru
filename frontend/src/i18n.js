@@ -31,7 +31,7 @@ export const translations = {
     },
     scanner: {
       title: "Centro de Control de Escaneo & Rastreo",
-      desc: "Inspección activa de red: ARP LAN, sondeo SNMP, radar BLE, cámaras IP (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)",
+      desc: "Inspección multi-vector: ARP LAN, sondeo SNMP, radar BLE, cámaras IP, NAS y sensores inalámbricos (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)",
       arp_btn: "Barrido ARP",
       arp_title: "Escanear tabla ARP de la red local",
       snmp_btn: "Sondeo SNMP",
@@ -40,8 +40,21 @@ export const translations = {
       ble_title: "Descubrir balizas y beacons BLE cercanos",
       iot_btn: "Rastrear NAS & Cams",
       iot_title: "Sondear cámaras de vigilancia (RTSP/ONVIF) y almacenamiento NAS (SMB/DSM)",
+      wireless_btn: "Sensores & IoT",
+      wireless_title: "Escanear sensores y radios: Zigbee, Z-Wave, Thread, UWB, NFC, GPS y LPWAN",
       all_btn: "Escanear Todo",
       scanning_btn: "Escaneando..."
+    },
+    sensors: {
+      title: "Centro de Sensores & Hardware Inalámbrico (APK & Multiplataforma)",
+      subtitle: "Rastreo activo de sensores físicos y radio: Zigbee, Z-Wave, Thread, UWB, NFC, Bluetooth/BLE, GPS/GNSS y LPWAN",
+      scan_all: "Escanear Todos los Sensores",
+      scanning: "Escaneando...",
+      ready: "Listo",
+      detected: "Detectado",
+      reading_nfc: "Acerca una tarjeta o tag NFC al dispositivo...",
+      gps_fix: "Obteniendo fix satelital GNSS...",
+      active_now: "Activo"
     },
     table: {
       title: "Inventario de Dispositivos Reales Comprobados",
@@ -155,7 +168,7 @@ export const translations = {
     },
     scanner: {
       title: "Scan & Tracking Control Center",
-      desc: "Active network inspection: LAN ARP sweep, SNMP probing, BLE radar, IP cameras (RTSP/ONVIF), and NAS storage (SMB/DSM)",
+      desc: "Multi-vector inspection: LAN ARP, SNMP probe, BLE radar, IP cameras, NAS, and wireless sensors (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)",
       arp_btn: "ARP Sweep",
       arp_title: "Scan local network ARP table",
       snmp_btn: "SNMP Probe",
@@ -164,8 +177,21 @@ export const translations = {
       ble_title: "Discover nearby BLE beacons and tags",
       iot_btn: "Track NAS & Cams",
       iot_title: "Probe surveillance cameras (RTSP/ONVIF) and NAS storage (SMB/DSM)",
+      wireless_btn: "Sensors & IoT",
+      wireless_title: "Scan sensors and radios: Zigbee, Z-Wave, Thread, UWB, NFC, GPS, and LPWAN",
       all_btn: "Scan All",
       scanning_btn: "Scanning..."
+    },
+    sensors: {
+      title: "Sensors & Wireless Hardware Center (APK & Cross-Platform)",
+      subtitle: "Active physical and radio sensor tracking: Zigbee, Z-Wave, Thread, UWB, NFC, Bluetooth/BLE, GPS/GNSS, and LPWAN",
+      scan_all: "Scan All Sensors",
+      scanning: "Scanning...",
+      ready: "Ready",
+      detected: "Detected",
+      reading_nfc: "Hold an NFC card or tag near device...",
+      gps_fix: "Acquiring GNSS satellite fix...",
+      active_now: "Active"
     },
     table: {
       title: "Verified Real Devices Inventory",
@@ -279,7 +305,7 @@ export const translations = {
     },
     scanner: {
       title: "Scan- & Tracking-Kontrollzentrum",
-      desc: "Aktive Netzwerkprüfung: LAN-ARP-Suchlauf, SNMP-Sondierung, BLE-Radar, IP-Kameras (RTSP/ONVIF) und NAS-Speicher (SMB/DSM)",
+      desc: "Multi-Vektor-Inspektion: LAN-ARP, SNMP, BLE-Radar, IP-Kameras, NAS und Funksensoren (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)",
       arp_btn: "ARP-Suchlauf",
       arp_title: "Lokale ARP-Tabelle des Netzwerks scannen",
       snmp_btn: "SNMP-Sonde",
@@ -288,8 +314,21 @@ export const translations = {
       ble_title: "Nahegelegene BLE-Beacons und Tags erkennen",
       iot_btn: "NAS & Cams scannen",
       iot_title: "Überwachungskameras (RTSP/ONVIF) und NAS-Speicher (SMB/DSM) abfragen",
+      wireless_btn: "Sensoren & IoT",
+      wireless_title: "Sensoren und Funknetze scannen: Zigbee, Z-Wave, Thread, UWB, NFC, GPS und LPWAN",
       all_btn: "Alles scannen",
       scanning_btn: "Wird gescannt..."
+    },
+    sensors: {
+      title: "Sensor- & Hardware-Zentrum (APK & Multiplattform)",
+      subtitle: "Aktives Tracking physischer Sensoren: Zigbee, Z-Wave, Thread, UWB, NFC, Bluetooth/BLE, GPS/GNSS und LPWAN",
+      scan_all: "Alle Sensoren scannen",
+      scanning: "Wird gescannt...",
+      ready: "Bereit",
+      detected: "Erkannt",
+      reading_nfc: "NFC-Karte oder Tag an das Gerät halten...",
+      gps_fix: "GNSS-Satellitenfix wird ermittelt...",
+      active_now: "Aktiv"
     },
     table: {
       title: "Inventar verifizierter echter Geräte",

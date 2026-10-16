@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { RefreshCw, Wifi, Server, Bluetooth, Activity, Camera } from './Icons'
+import { RefreshCw, Wifi, Server, Bluetooth, Activity, Camera, Radio } from './Icons'
 
 export default function ScannerPanel({ onTriggerScan, isScanning, t }) {
   const [activeType, setActiveType] = useState(null)
@@ -63,6 +63,16 @@ export default function ScannerPanel({ onTriggerScan, isScanning, t }) {
           >
             <Camera size={15} color="var(--accent-rose)" />
             <span>{scT.iot_btn || "Rastrear NAS & Cams"}</span>
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            onClick={() => handleScan('wireless')}
+            disabled={isScanning}
+            title={scT.wireless_title || "Escanear sensores y radios: Zigbee, Z-Wave, Thread, UWB, NFC, GPS y LPWAN"}
+          >
+            <Radio size={15} color="var(--accent-cyan)" />
+            <span>{scT.wireless_btn || "Sensores & IoT"}</span>
           </button>
 
           <button

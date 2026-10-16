@@ -142,3 +142,73 @@ export const Clock = ({ size = 20, className = "" }) => (
     <polyline points="12 6 12 12 16 14"/>
   </svg>
 )
+
+export const Zigbee = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="12 2 20 7 20 17 12 22 4 17 4 7 12 2"/>
+    <polyline points="9 8 15 8 9 16 15 16"/>
+  </svg>
+)
+
+export const ZWave = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M2 12h5l3-7 4 14 3-7h5"/>
+    <path d="M4 6c4-3 12-3 16 0"/>
+    <path d="M4 18c4 3 12 3 16 0"/>
+  </svg>
+)
+
+export const Thread = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 3a9 9 0 0 1 9 9c0 3-2 5.5-5 5.5s-4-1.5-4-3.5 1.5-3.5 3.5-3.5c1.5 0 2.5 1 2.5 2"/>
+  </svg>
+)
+
+export const UWB = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M8 8a6 6 0 0 0 0 8"/>
+    <path d="M16 8a6 6 0 0 1 0 8"/>
+    <path d="M5 5a10 10 0 0 0 0 14"/>
+    <path d="M19 5a10 10 0 0 1 0 14"/>
+  </svg>
+)
+
+export const NFC = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="4" width="18" height="16" rx="2"/>
+    <path d="M7 15a4 4 0 0 1 4-4"/>
+    <path d="M7 11a8 8 0 0 1 8-8"/>
+    <circle cx="7" cy="15" r="0.5" fill="currentColor"/>
+  </svg>
+)
+
+export const GPS = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="22" y1="12" x2="18" y2="12"/>
+    <line x1="6" y1="12" x2="2" y2="12"/>
+    <line x1="12" y1="6" x2="12" y2="2"/>
+    <line x1="12" y1="22" x2="12" y2="18"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+)
+
+export const LPWAN = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 2v20"/>
+    <path d="M17 5H7"/>
+    <path d="M19 10H5"/>
+    <path d="M21 15H3"/>
+    <circle cx="12" cy="2" r="2" fill="currentColor"/>
+  </svg>
+)
+
+export const MapPin = ({ size = 20, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+    <circle cx="12" cy="10" r="3"/>
+  </svg>
+)
+

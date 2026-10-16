@@ -165,6 +165,20 @@ func (e *Engine) RunScan(scanType string) (*models.ScanHistory, error) {
 		}
 	}
 
+	// 5. Escaneo de Sensores & Protocolos Inalámbricos Especializados (Zigbee, Z-Wave, Thread, UWB, NFC, GPS, LPWAN)
+	if scanType == "wireless" || scanType == "all" || scanType == "zigbee" || scanType == "zwave" || scanType == "thread" || scanType == "uwb" || scanType == "nfc" || scanType == "gps" || scanType == "lpwan" {
+		allOnline, _ := e.database.GetDevices("", "online")
+		wirelessDevices, wirelessAlerts := ExecuteWirelessScan(allOnline, scanType)
+		for _, dev := range wirelessDevices {
+			_, _ = e.database.UpsertDevice(&dev)
+			totalFound++
+		}
+		for _, a := range wirelessAlerts {
+			_ = e.database.CreateAlert(&a)
+		}
+		detailsLog = append(detailsLog, fmt.Sprintf("Sensores & Wireless: %d nodos especializados descubiertos", len(wirelessDevices)))
+	}
+
 	history.FinishedAt = time.Now()
 	history.DevicesFound = totalFound
 	history.VerifiedFound = totalFound

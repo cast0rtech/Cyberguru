@@ -22,7 +22,7 @@ type IoTServiceResult struct {
 
 // checkTCPPort prueba rápidamente si un puerto TCP está abierto
 func checkTCPPort(ip string, port int, timeout time.Duration) bool {
-	target := fmt.Sprintf("%s:%d", ip, port)
+	target := net.JoinHostPort(ip, fmt.Sprintf("%d", port))
 	conn, err := net.DialTimeout("tcp", target, timeout)
 	if err == nil {
 		_ = conn.Close()

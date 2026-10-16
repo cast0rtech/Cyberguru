@@ -95,7 +95,7 @@ func ProbeTCPPorts(ip string, timeout time.Duration) ([]string, int, bool) {
 		wg.Add(1)
 		go func(portNum int, portName string) {
 			defer wg.Done()
-			addr := fmt.Sprintf("%s:%d", ip, portNum)
+			addr := net.JoinHostPort(ip, fmt.Sprintf("%d", portNum))
 			t0 := time.Now()
 			conn, err := net.DialTimeout("tcp", addr, timeout)
 			lat := int(time.Since(t0).Milliseconds())

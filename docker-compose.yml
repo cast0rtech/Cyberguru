@@ -17,7 +17,7 @@ services:
       - DB_PATH=/app/data/cyberguru.db
       - FRONTEND_DIR=/app/frontend/dist
       - SCAN_INTERVAL_MIN=5
-      - SIMULATE_BLE_IF_ABSENT=true
+      - SIMULATE_BLE_IF_ABSENT=false
 
 volumes:
   cyberguru_data:

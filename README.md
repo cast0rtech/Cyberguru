@@ -34,6 +34,8 @@ Plataforma de ciberseguridad multiplataforma para **PC (Windows/Linux), Android 
 | **Rastreo de Cámaras & NAS** | Inspección de flujos RTSP/ONVIF y servidores de almacenamiento SMB/DSM | ✅ Activo |
 | **Sondeo SNMP v1/v2c** | Consulta UDP en puerto 161 a switches y routers gestionados | ✅ Activo |
 | **Detección BLE Física** | Sensores Bluetooth Low Energy nativos (sin simulación artificial) | ✅ Activo |
+| **Sensores IoT & Wireless** | Zigbee, Z-Wave, Thread, UWB, NFC, GPS/GNSS y LPWAN (LoRaWAN) | ✅ Activo |
+| **Android APK Nativo** | Acceso a hardware de sensores móviles con modo offline/sincronizado | ✅ Activo |
 | **Dashboard Multilingüe** | Selector dinámico de idioma (Español, Inglés y Alemán) | ✅ Activo |
 
 ---
@@ -149,6 +151,8 @@ docker compose up -d --build
 | **IP Cameras & NAS Tracking** | RTSP/ONVIF surveillance streams and SMB/DSM storage detection | ✅ Active |
 | **SNMP v1/v2c Querying** | UDP 161 polling for managed routers, switches, and industrial nodes | ✅ Active |
 | **Physical BLE Discovery** | Native Bluetooth Low Energy scanning (pure hardware, no simulation) | ✅ Active |
+| **IoT & Wireless Sensors** | Zigbee, Z-Wave, Thread, UWB, NFC, GPS/GNSS, and LPWAN (LoRaWAN) | ✅ Active |
+| **Native Android APK** | Direct mobile sensor hardware access with standalone & sync modes | ✅ Active |
 | **Multilingual Dashboard** | Dynamic UI language switcher (English, Spanish, German) | ✅ Active |
 
 ---

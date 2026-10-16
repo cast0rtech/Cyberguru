@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import MetricCard from './components/MetricCard'
 import ScannerPanel from './components/ScannerPanel'
+import SensorRadarPanel from './components/SensorRadarPanel'
 import DeviceTable from './components/DeviceTable'
 import AlertFeed from './components/AlertFeed'
 import StatsAnalytics from './components/StatsAnalytics'
@@ -118,6 +119,36 @@ export default function App() {
       // Error de red
     } finally {
       setIsScanning(false)
+    }
+  }
+
+  // Registrar dispositivos descubiertos directamente por los sensores del dispositivo cliente (móvil/APK)
+  const handleDeviceDiscovered = async (newDev) => {
+    if (!newDev || !newDev.mac) return
+
+    setDevices(prev => {
+      const idx = prev.findIndex(d => d.mac === newDev.mac)
+      let updated
+      if (idx >= 0) {
+        updated = [...prev]
+        updated[idx] = { ...updated[idx], ...newDev, last_seen: new Date().toISOString() }
+      } else {
+        updated = [newDev, ...prev]
+      }
+      localStorage.setItem('cyberguru_devices', JSON.stringify(updated))
+      return updated
+    })
+
+    // Sincronizar con el backend de Cyberguru si está disponible
+    try {
+      await fetch(getEndpoint('/api/devices'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDev)
+      })
+      await fetchData()
+    } catch (e) {
+      // Modo offline / standalone en dispositivo móvil
     }
   }
 
@@ -305,6 +336,13 @@ export default function App() {
         {activeTab === 'inventory' && (
           <>
             <ScannerPanel onTriggerScan={handleTriggerScan} isScanning={isScanning} t={t} />
+
+            <SensorRadarPanel
+              onDeviceDiscovered={handleDeviceDiscovered}
+              onTriggerScan={handleTriggerScan}
+              isScanning={isScanning}
+              t={t}
+            />
 
             <div style={{
               display: 'grid',

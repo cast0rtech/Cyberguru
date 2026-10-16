@@ -1,5 +1,8 @@
 import React, { useState } from 'react'
-import { Search, Wifi, Server, Bluetooth, Radio, Camera, HardDrive, Globe, Cpu, Smartphone, CheckCircle, RefreshCw, Zap } from './Icons'
+import {
+  Search, Wifi, Server, Bluetooth, Radio, Camera, HardDrive, Globe, Cpu, Smartphone,
+  CheckCircle, RefreshCw, Zap, Zigbee, ZWave, Thread, UWB, NFC, GPS, LPWAN, MapPin
+} from './Icons'
 
 export default function DeviceTable({ devices, loading, onVerifyDevice, verifyingDeviceId, t }) {
   const [filterType, setFilterType] = useState('ALL')
@@ -17,6 +20,13 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
       (filterType === 'NAS' && dev.device_type === 'NAS') ||
       (filterType === 'SNMP' && dev.snmp_enabled) ||
       (filterType === 'BLE' && dev.device_type === 'BLE') ||
+      (filterType === 'NFC' && dev.device_type === 'NFC') ||
+      (filterType === 'GPS' && dev.device_type === 'GPS') ||
+      (filterType === 'Zigbee' && dev.device_type === 'Zigbee') ||
+      (filterType === 'ZWave' && (dev.device_type === 'Z-Wave' || dev.device_type === 'ZWave')) ||
+      (filterType === 'Thread' && dev.device_type === 'Thread') ||
+      (filterType === 'UWB' && dev.device_type === 'UWB') ||
+      (filterType === 'LPWAN' && dev.device_type === 'LPWAN') ||
       (filterType === 'WiFi' && dev.device_type === 'WiFi') ||
       (filterType === 'Ethernet' && dev.device_type === 'Ethernet')
 
@@ -35,6 +45,13 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
     if (isGateway || type === 'Gateway/Router') return "badge badge-gateway"
     if (type === 'Camera') return "badge badge-camera"
     if (type === 'NAS') return "badge badge-nas"
+    if (type === 'Zigbee') return "badge badge-zigbee"
+    if (type === 'Z-Wave' || type === 'ZWave') return "badge badge-zwave"
+    if (type === 'Thread') return "badge badge-thread"
+    if (type === 'UWB') return "badge badge-uwb"
+    if (type === 'NFC') return "badge badge-nfc"
+    if (type === 'GPS') return "badge badge-gps"
+    if (type === 'LPWAN') return "badge badge-lpwan"
     if (snmp) return "badge badge-snmp"
     switch (type) {
       case 'BLE': return "badge badge-ble"
@@ -48,6 +65,13 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
     if (isGateway || type === 'Gateway/Router') return <Globe size={12} />
     if (type === 'Camera') return <Camera size={12} />
     if (type === 'NAS') return <HardDrive size={12} />
+    if (type === 'Zigbee') return <Zigbee size={12} />
+    if (type === 'Z-Wave' || type === 'ZWave') return <ZWave size={12} />
+    if (type === 'Thread') return <Thread size={12} />
+    if (type === 'UWB') return <UWB size={12} />
+    if (type === 'NFC') return <NFC size={12} />
+    if (type === 'GPS') return <GPS size={12} />
+    if (type === 'LPWAN') return <LPWAN size={12} />
     if (snmp) return <Server size={12} />
     if (type === 'Workstation/PC') return <Cpu size={12} />
     if (type === 'Mobile') return <Smartphone size={12} />
@@ -125,6 +149,13 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
               { id: 'NAS', label: tabNames.nas || '💾 NAS' },
               { id: 'SNMP', label: tabNames.snmp || 'SNMP' },
               { id: 'BLE', label: tabNames.ble || 'BLE' },
+              { id: 'NFC', label: '🏷️ NFC' },
+              { id: 'GPS', label: '🛰️ GPS' },
+              { id: 'Zigbee', label: '🐝 Zigbee' },
+              { id: 'ZWave', label: '🌊 Z-Wave' },
+              { id: 'Thread', label: '🧵 Thread' },
+              { id: 'UWB', label: '📶 UWB' },
+              { id: 'LPWAN', label: '📻 LPWAN' },
               { id: 'WiFi', label: tabNames.wifi || 'WiFi' },
               { id: 'Ethernet', label: tabNames.ethernet || 'Ethernet' }
             ].map((tab) => (
@@ -283,17 +314,42 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
 
                     {/* Servicios / Telemetría */}
                     <td style={{ padding: '0.75rem 1rem', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
-                      {dev.services ? (
-                        <span style={{ color: 'var(--accent-cyan)', fontWeight: '500' }}>
-                          {dev.services}
-                        </span>
-                      ) : dev.device_type === 'BLE' && dev.rssi ? (
-                        <span className="font-mono" style={{ color: dev.rssi > -65 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
-                          RSSI: {dev.rssi} dBm
-                        </span>
-                      ) : (
-                        dev.os_info || 'Protocolo LAN verificado'
-                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {dev.services && (
+                          <span style={{ color: 'var(--accent-cyan)', fontWeight: '500' }}>
+                            {dev.services}
+                          </span>
+                        )}
+                        {dev.coordinates && (
+                          <a
+                            href={`https://www.google.com/maps?q=${dev.coordinates}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              color: 'var(--accent-emerald)',
+                              fontSize: '0.7rem',
+                              textDecoration: 'none',
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: '4px',
+                              width: 'fit-content'
+                            }}
+                          >
+                            <MapPin size={11} />
+                            <span>GPS: {dev.coordinates}</span>
+                          </a>
+                        )}
+                        {dev.rssi ? (
+                          <span className="font-mono" style={{ fontSize: '0.7rem', color: dev.rssi > -65 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
+                            Potencia RSSI: {dev.rssi} dBm
+                          </span>
+                        ) : !dev.services && !dev.coordinates ? (
+                          <span>{dev.os_info || 'Protocolo validado'}</span>
+                        ) : null}
+                      </div>
                     </td>
 
                     {/* Estado */}

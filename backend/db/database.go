@@ -67,7 +67,8 @@ func (d *Database) migrate() error {
 		is_gateway BOOLEAN DEFAULT 0,
 		last_verified_at DATETIME,
 		checks_passed INTEGER DEFAULT 1,
-		checks_failed INTEGER DEFAULT 0
+		checks_failed INTEGER DEFAULT 0,
+		coordinates TEXT DEFAULT ''
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_devices_ip ON devices(ip);
@@ -140,6 +141,7 @@ func (d *Database) migrate() error {
 		"ALTER TABLE devices ADD COLUMN last_verified_at DATETIME",
 		"ALTER TABLE devices ADD COLUMN checks_passed INTEGER DEFAULT 1",
 		"ALTER TABLE devices ADD COLUMN checks_failed INTEGER DEFAULT 0",
+		"ALTER TABLE devices ADD COLUMN coordinates TEXT DEFAULT ''",
 		"ALTER TABLE scan_history ADD COLUMN verified_found INTEGER DEFAULT 0",
 	}
 
@@ -231,13 +233,13 @@ func (d *Database) UpsertDevice(dev *models.Device) (bool, error) {
 				mac, ip, hostname, vendor, device_type, os_info, services,
 				first_seen, last_seen, status, rssi, snmp_enabled,
 				verified, verification_method, response_time_ms, is_gateway,
-				last_verified_at, checks_passed, checks_failed
+				last_verified_at, checks_passed, checks_failed, coordinates
 			)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, dev.MAC, dev.IP, dev.Hostname, dev.Vendor, dev.DeviceType, dev.OSInfo, dev.Services,
 			dev.FirstSeen, dev.LastSeen, dev.Status, dev.RSSI, dev.SNMPEnabled,
 			dev.Verified, dev.VerificationMethod, dev.ResponseTimeMs, dev.IsGateway,
-			dev.LastVerifiedAt, dev.ChecksPassed, dev.ChecksFailed)
+			dev.LastVerifiedAt, dev.ChecksPassed, dev.ChecksFailed, dev.Coordinates)
 		if err != nil {
 			return false, err
 		}
@@ -276,14 +278,15 @@ func (d *Database) UpsertDevice(dev *models.Device) (bool, error) {
 			response_time_ms = CASE WHEN ? > 0 THEN ? ELSE response_time_ms END,
 			is_gateway = CASE WHEN ? THEN 1 ELSE is_gateway END,
 			last_verified_at = ?,
-			checks_passed = checks_passed + 1
+			checks_passed = checks_passed + 1,
+			coordinates = CASE WHEN ? != '' THEN ? ELSE coordinates END
 		WHERE id = ?
 	`, dev.IP, dev.IP, dev.Hostname, dev.Hostname, dev.Vendor, dev.Vendor,
 		dev.DeviceType, dev.DeviceType, dev.OSInfo, dev.OSInfo, dev.Services, dev.Services,
 		now, dev.RSSI, dev.RSSI, dev.SNMPEnabled,
 		dev.Verified, dev.VerificationMethod, dev.VerificationMethod,
 		dev.ResponseTimeMs, dev.ResponseTimeMs, dev.IsGateway,
-		now, existingID)
+		now, dev.Coordinates, existingID)
 
 	// Registrar evento si hubo cambio significativo o actualización de comprobación
 	if dev.ResponseTimeMs > 0 && dev.ResponseTimeMs != prevLatency {
@@ -304,7 +307,7 @@ func (d *Database) GetDevices(deviceType, status string) ([]models.Device, error
 		SELECT id, mac, ip, hostname, vendor, device_type, os_info, services,
 		       first_seen, last_seen, status, rssi, snmp_enabled,
 		       verified, verification_method, response_time_ms, is_gateway,
-		       last_verified_at, checks_passed, checks_failed
+		       last_verified_at, checks_passed, checks_failed, COALESCE(coordinates, '')
 		FROM devices WHERE 1=1
 	`
 	var args []interface{}
@@ -335,7 +338,7 @@ func (d *Database) GetDevices(deviceType, status string) ([]models.Device, error
 			&dev.DeviceType, &dev.OSInfo, &dev.Services, &fs, &ls, &dev.Status,
 			&dev.RSSI, &dev.SNMPEnabled,
 			&dev.Verified, &dev.VerificationMethod, &dev.ResponseTimeMs, &dev.IsGateway,
-			&lva, &dev.ChecksPassed, &dev.ChecksFailed,
+			&lva, &dev.ChecksPassed, &dev.ChecksFailed, &dev.Coordinates,
 		); err != nil {
 			return nil, err
 		}
@@ -366,14 +369,14 @@ func (d *Database) GetDeviceByID(id int64) (*models.Device, error) {
 		SELECT id, mac, ip, hostname, vendor, device_type, os_info, services,
 		       first_seen, last_seen, status, rssi, snmp_enabled,
 		       verified, verification_method, response_time_ms, is_gateway,
-		       last_verified_at, checks_passed, checks_failed
+		       last_verified_at, checks_passed, checks_failed, COALESCE(coordinates, '')
 		FROM devices WHERE id = ?
 	`, id).Scan(
 		&dev.ID, &dev.MAC, &dev.IP, &dev.Hostname, &dev.Vendor,
 		&dev.DeviceType, &dev.OSInfo, &dev.Services, &fs, &ls, &dev.Status,
 		&dev.RSSI, &dev.SNMPEnabled,
 		&dev.Verified, &dev.VerificationMethod, &dev.ResponseTimeMs, &dev.IsGateway,
-		&lva, &dev.ChecksPassed, &dev.ChecksFailed,
+		&lva, &dev.ChecksPassed, &dev.ChecksFailed, &dev.Coordinates,
 	)
 	if err != nil {
 		return nil, err
@@ -605,6 +608,13 @@ func (d *Database) GetStats() (*models.Stats, error) {
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'BLE'").Scan(&stats.BLEDevices)
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'Camera'").Scan(&stats.CameraDevices)
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'NAS'").Scan(&stats.NASDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'Zigbee'").Scan(&stats.ZigbeeDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'Z-Wave'").Scan(&stats.ZWaveDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'Thread'").Scan(&stats.ThreadDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'UWB'").Scan(&stats.UWBDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'NFC'").Scan(&stats.NFCDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'GPS'").Scan(&stats.GPSDevices)
+	_ = d.db.QueryRow("SELECT COUNT(*) FROM devices WHERE device_type = 'LPWAN'").Scan(&stats.LPWANDevices)
 
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM alerts").Scan(&stats.TotalAlerts)
 	_ = d.db.QueryRow("SELECT COUNT(*) FROM alerts WHERE acknowledged = 0").Scan(&stats.PendingAlerts)

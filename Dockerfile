@@ -36,7 +36,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o cyberguru .
 # ------------------------------------------------------------------------------
 FROM alpine:3.20
 
-# Paquetes esenciales para operaciones de red física y Bluetooth
+# Paquetes esenciales para operaciones de red física, Bluetooth y sensores
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
@@ -44,7 +44,9 @@ RUN apk add --no-cache \
     iproute2 \
     net-tools \
     bluez \
-    libpcap
+    libpcap \
+    curl \
+    pcsc-lite-libs
 
 WORKDIR /app
 
