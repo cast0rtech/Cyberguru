@@ -151,7 +151,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
             </div>
             <button
               onClick={exportAudit}
-              title="Exportar inventario de auditoría en JSON"
+              title={tbT.export_title || "Exportar inventario de auditoría en JSON"}
               style={{
                 background: 'rgba(30, 41, 59, 0.8)',
                 border: '1px solid var(--border-subtle)',
@@ -166,7 +166,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                 gap: '0.35rem'
               }}
             >
-              📥 Exportar
+              {tbT.export_btn || "📥 Exportar"}
             </button>
           </div>
 
@@ -288,7 +288,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                         )}
                       </div>
                       <div className="font-mono" style={{ fontSize: '0.75rem', color: dev.ip === '0.0.0.0' ? 'var(--text-dim)' : 'var(--accent-cyan)' }}>
-                        {dev.ip === '0.0.0.0' ? 'Sin IP (BLE)' : dev.ip}
+                        {dev.ip === '0.0.0.0' ? (tbT.no_ip_ble || 'Sin IP (BLE)') : dev.ip}
                       </div>
                     </td>
 
@@ -306,7 +306,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span className={getBadgeClass(dev.device_type, dev.snmp_enabled, dev.is_gateway)}>
                         {getTypeIcon(dev.device_type, dev.snmp_enabled, dev.is_gateway)}
-                        {dev.is_gateway ? 'Gateway' : dev.device_type === 'Camera' ? 'Cámara' : dev.device_type}
+                        {dev.is_gateway ? (tabNames.gateway || 'Gateway') : dev.device_type === 'Camera' ? (tabNames.camera || 'Cámara') : dev.device_type}
                       </span>
                     </td>
 
@@ -339,7 +339,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                         )}
                       </div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>
-                        {dev.verification_method || 'Respuesta de red validada'}
+                        {dev.verification_method || (tbT.validated_response || 'Respuesta de red validada')}
                       </div>
                     </td>
 
@@ -375,10 +375,10 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                         )}
                         {dev.rssi ? (
                           <span className="font-mono" style={{ fontSize: '0.7rem', color: dev.rssi > -65 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
-                            Potencia RSSI: {dev.rssi} dBm
+                            {tbT.rssi_power || 'Potencia RSSI:'} {dev.rssi} dBm
                           </span>
                         ) : !dev.services && !dev.coordinates ? (
-                          <span>{dev.os_info || 'Protocolo validado'}</span>
+                          <span>{dev.os_info || (tbT.validated_protocol || 'Protocolo validado')}</span>
                         ) : null}
                       </div>
                     </td>
@@ -392,7 +392,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                           color: dev.status === 'online' ? 'var(--accent-emerald)' : 'var(--accent-rose)',
                           fontWeight: '600'
                         }}>
-                          {dev.status === 'online' ? 'Online' : 'Offline'}
+                          {dev.status === 'online' ? (tbT.online || 'Online') : (tbT.offline || 'Offline')}
                         </span>
                       </div>
                       <div className="font-mono" style={{ fontSize: '0.65rem', color: 'var(--text-dim)', marginTop: '0.15rem' }}>
@@ -406,7 +406,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                         {dev.device_type === 'GPS' && onOpenGnssModal && (
                           <button
                             onClick={() => onOpenGnssModal(dev.gnss_telemetry || null)}
-                            title="Ver satélites visibles y posición exacta en el radar polar"
+                            title={tbT.view_satellites_title || "Ver satélites visibles y posición exacta en el radar polar"}
                             style={{
                               background: 'rgba(6, 182, 212, 0.2)',
                               border: '1px solid rgba(0, 242, 254, 0.45)',
@@ -424,7 +424,7 @@ export default function DeviceTable({ devices, loading, onVerifyDevice, verifyin
                             }}
                           >
                             <Satellite size={12} className="animate-pulse" />
-                            <span>Satélites</span>
+                            <span>{tbT.view_satellites_btn || "Satélites"}</span>
                           </button>
                         )}
 

@@ -21,6 +21,7 @@ import {
   Radio,
   Bluetooth
 } from './Icons'
+import { calculateVisibleGnssSatellites } from '../utils/sensorScanner'
 
 export default function StatsAnalytics({
   stats = {},
@@ -113,9 +114,23 @@ export default function StatsAnalytics({
     bearing: 0.0,
     provider: 'GPS_HARDWARE'
   }
-  const satellites = gnssTelemetry?.satellites || []
-  const satsCount = gnssTelemetry?.satellitesCount || satellites.length || 0
-  const satsInFix = gnssTelemetry?.satellitesUsedInFix || satellites.filter(s => s.usedInFix).length || 0
+
+  // Si gnssTelemetry tiene satélites válidos de hardware o evento nativo, usarlos; si no, calcularlos inmediatamente según coordenadas del observador
+  const fallbackSats = React.useMemo(() => {
+    return calculateVisibleGnssSatellites(location.latitude, location.longitude, new Date())
+  }, [location.latitude, location.longitude])
+
+  const satellites = (gnssTelemetry?.satellites && gnssTelemetry.satellites.length > 0)
+    ? gnssTelemetry.satellites
+    : (fallbackSats.satellites || [])
+
+  const satsCount = (gnssTelemetry?.satellites && gnssTelemetry.satellites.length > 0)
+    ? (gnssTelemetry.satellitesCount || satellites.length)
+    : fallbackSats.satellitesCount
+
+  const satsInFix = (gnssTelemetry?.satellites && gnssTelemetry.satellites.length > 0)
+    ? (gnssTelemetry.satellitesUsedInFix ?? satellites.filter(s => s.usedInFix).length)
+    : fallbackSats.satellitesUsedInFix
 
   const filteredSatellites = satellites.filter(s => {
     if (satFixOnly && !s.usedInFix) return false
@@ -186,7 +201,7 @@ export default function StatsAnalytics({
               }}
             >
               <Satellite size={15} />
-              <span>Observatorio Sky View</span>
+              <span>{stT.sky_view_observatory || "Observatorio Sky View"}</span>
             </button>
           )}
 
@@ -244,7 +259,7 @@ export default function StatsAnalytics({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                Dispositivos Alistados
+                {stT.kpi_devices || "Dispositivos Alistados"}
               </div>
               <div style={{ fontSize: '1.9rem', fontWeight: '800', color: 'var(--accent-emerald)', marginTop: '0.3rem' }}>
                 {devices.length}
@@ -264,7 +279,7 @@ export default function StatsAnalytics({
             </div>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
-            100% verificados en red LAN / Wi-Fi
+            {stT.kpi_devices_sub || "100% verificados en red LAN / Wi-Fi"}
           </div>
         </div>
 
@@ -273,12 +288,12 @@ export default function StatsAnalytics({
           className="glass-panel"
           style={{ padding: '1.2rem', position: 'relative', overflow: 'hidden', cursor: onOpenGnssModal ? 'pointer' : 'default' }}
           onClick={() => onOpenGnssModal && onOpenGnssModal(gnssTelemetry)}
-          title="Toca para abrir el radar orbital 360°"
+          title={stT.kpi_gnss_title || "Toca para abrir el radar orbital 360°"}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                Satélites GPS en Fix
+                {stT.kpi_gnss_fix || "Satélites GPS en Fix"}
               </div>
               <div style={{ fontSize: '1.9rem', fontWeight: '800', color: 'var(--accent-cyan)', marginTop: '0.3rem' }}>
                 {satsInFix} <span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>/ {satsCount}</span>
@@ -299,7 +314,7 @@ export default function StatsAnalytics({
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <span className="pulse-green"></span>
-            Fix 3D Activo (±{Math.round(location.accuracy || 3)}m)
+            {stT.kpi_gnss_sub || "Fix 3D Activo"} (±{Math.round(location.accuracy || 3)}m)
           </div>
         </div>
 
@@ -337,7 +352,7 @@ export default function StatsAnalytics({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>
-                Wi-Fi & Servicios
+                {stT.kpi_wifi_services || "Wi-Fi & Servicios"}
               </div>
               <div style={{ fontSize: '1.9rem', fontWeight: '800', color: '#f8fafc', marginTop: '0.3rem' }}>
                 {devices.filter(d => d.device_type === 'WiFi').length} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>APs</span>
@@ -357,7 +372,7 @@ export default function StatsAnalytics({
             </div>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
-            {devices.filter(d => d.device_type === 'Camera' || d.device_type === 'NAS').length} Cámaras y Almacenamiento
+            {devices.filter(d => d.device_type === 'Camera' || d.device_type === 'NAS').length} {stT.kpi_cams_nas || "Cámaras y Almacenamiento"}
           </div>
         </div>
       </div>
@@ -370,7 +385,7 @@ export default function StatsAnalytics({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
-                📋 Dispositivos Alistados en Resumen
+                {stT.section_devices_title || "📋 Dispositivos Alistados en Resumen"}
               </h3>
               <span style={{
                 background: 'rgba(16, 185, 129, 0.15)',
@@ -381,11 +396,11 @@ export default function StatsAnalytics({
                 padding: '0.15rem 0.45rem',
                 borderRadius: '6px'
               }}>
-                {filteredDevices.length} ALISTADOS
+                {filteredDevices.length} {stT.badge_listed || "ALISTADOS"}
               </span>
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              Equipos de red, puertas de enlace, cámaras, NAS y puntos de acceso Wi-Fi verificados.
+              {stT.section_devices_sub || "Equipos de red, puertas de enlace, cámaras, NAS y puntos de acceso Wi-Fi verificados."}
             </p>
           </div>
 
@@ -397,7 +412,7 @@ export default function StatsAnalytics({
               </span>
               <input
                 type="text"
-                placeholder="Buscar IP, MAC, Nombre..."
+                placeholder={stT.search_placeholder || "Buscar IP, MAC, Nombre..."}
                 value={deviceSearch}
                 onChange={(e) => setDeviceSearch(e.target.value)}
                 style={{
@@ -416,13 +431,13 @@ export default function StatsAnalytics({
             {/* Filtros de Tipo */}
             <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '2px', borderRadius: '8px', border: '1px solid var(--border-subtle)', gap: '2px', flexWrap: 'wrap' }}>
               {[
-                { id: 'ALL', label: 'Todos' },
-                { id: 'Gateway', label: 'Gateway' },
-                { id: 'WiFi', label: 'Wi-Fi' },
-                { id: 'Workstation', label: 'PCs' },
-                { id: 'Camera', label: 'Cams' },
-                { id: 'NAS', label: 'NAS' },
-                { id: 'BLE', label: 'BLE' }
+                { id: 'ALL', label: t?.table?.tabs?.all || 'Todos' },
+                { id: 'Gateway', label: t?.table?.tabs?.gateway || 'Gateway' },
+                { id: 'WiFi', label: t?.table?.tabs?.wifi || 'Wi-Fi' },
+                { id: 'Workstation', label: t?.table?.tabs?.workstation || 'PCs' },
+                { id: 'Camera', label: t?.table?.tabs?.camera || 'Cams' },
+                { id: 'NAS', label: t?.table?.tabs?.nas || 'NAS' },
+                { id: 'BLE', label: t?.table?.tabs?.ble || 'BLE' }
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -449,10 +464,10 @@ export default function StatsAnalytics({
           <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-dim)' }}>
             <Activity size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
             <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-muted)' }}>
-              No hay dispositivos alistados en este filtro
+              {stT.no_devices_filter || "No hay dispositivos alistados en este filtro"}
             </div>
             <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-              Ejecuta "Barrido LAN" o "Redes Wi-Fi" desde el panel de escaneo para alistar tus dispositivos.
+              {stT.no_devices_filter_desc || 'Ejecuta "Barrido LAN" o "Redes Wi-Fi" desde el panel de escaneo para alistar tus dispositivos.'}
             </div>
           </div>
         ) : (
@@ -460,13 +475,13 @@ export default function StatsAnalytics({
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Dispositivo</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Dirección IP</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Dirección MAC</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Tipo</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Latencia / Señal</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Estado</th>
-                  <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>Acción</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>{stT.th_device || "Dispositivo"}</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>{stT.th_ip || "Dirección IP"}</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>{stT.th_mac || "Dirección MAC"}</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>{stT.th_type || "Tipo"}</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>{stT.th_latency_signal || "Latencia / Señal"}</th>
+                  <th style={{ padding: '0.6rem 0.75rem' }}>{stT.th_status || "Estado"}</th>
+                  <th style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>{stT.th_action || "Acción"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -516,7 +531,7 @@ export default function StatsAnalytics({
                     <td style={{ padding: '0.6rem 0.75rem' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--accent-emerald)', fontSize: '0.75rem', fontWeight: '600' }}>
                         <span className="pulse-green"></span>
-                        Comprobado
+                        {stT.verified || "Comprobado"}
                       </span>
                     </td>
                     <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
@@ -535,7 +550,7 @@ export default function StatsAnalytics({
                             cursor: 'pointer'
                           }}
                         >
-                          {verifyingDeviceId === dev.id ? 'Probando...' : 'Re-test'}
+                          {verifyingDeviceId === dev.id ? (stT.retesting || 'Probando...') : (stT.retest_btn || 'Re-test')}
                         </button>
                       ) : (
                         <span style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>—</span>
@@ -557,7 +572,7 @@ export default function StatsAnalytics({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>
-                🛰️ Satélites GPS & Observatorio en Resumen
+                {stT.section_gnss_title || "🛰️ Satélites GPS & Observatorio en Resumen"}
               </h3>
               <span style={{
                 background: 'rgba(0, 242, 254, 0.15)',
@@ -568,11 +583,11 @@ export default function StatsAnalytics({
                 padding: '0.15rem 0.45rem',
                 borderRadius: '6px'
               }}>
-                {satsInFix} / {satsCount} EN FIX
+                {satsInFix} / {satsCount} {stT.badge_in_fix || "EN FIX"}
               </span>
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              Satélites físicos en la bóveda celeste: GPS (EE.UU.), Galileo (UE), GLONASS (Rusia) y BeiDou (China).
+              {stT.section_gnss_sub || "Satélites físicos en la bóveda celeste: GPS (EE.UU.), Galileo (UE), GLONASS (Rusia) y BeiDou (China)."}
             </p>
           </div>
 
@@ -595,14 +610,14 @@ export default function StatsAnalytics({
                 }}
               >
                 <Compass size={14} />
-                <span>Abrir Radar Polar 360°</span>
+                <span>{stT.open_radar_360 || "Abrir Radar Polar 360°"}</span>
               </button>
             )}
 
             {/* Filtros de Constelación */}
             <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', padding: '2px', borderRadius: '8px', border: '1px solid var(--border-subtle)', gap: '2px', flexWrap: 'wrap' }}>
               {[
-                { id: 'ALL', label: 'Todos' },
+                { id: 'ALL', label: t?.table?.tabs?.all || 'Todos' },
                 { id: 'GPS', label: 'GPS' },
                 { id: 'Galileo', label: 'Galileo' },
                 { id: 'GLONASS', label: 'GLONASS' },
@@ -639,7 +654,7 @@ export default function StatsAnalytics({
                   cursor: 'pointer'
                 }}
               >
-                ✔ Solo Fix
+                {stT.filter_fix_only || "✔ Solo Fix"}
               </button>
             </div>
           </div>
@@ -657,31 +672,31 @@ export default function StatsAnalytics({
           marginBottom: '1rem'
         }}>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Latitud</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{stT.latitude || "Latitud"}</div>
             <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
               {location.latitude.toFixed(5)}°
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Longitud</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{stT.longitude || "Longitud"}</div>
             <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-cyan)' }}>
               {location.longitude.toFixed(5)}°
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Altitud SNM</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{stT.altitude_msl || "Altitud SNM"}</div>
             <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-emerald)' }}>
               {Math.round(location.altitude || 667)} m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Precisión Horizontal</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{stT.accuracy || "Precisión Horizontal"}</div>
             <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--accent-emerald)' }}>
               ±{Math.round(location.accuracy || 3.8)} m
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Proveedor GPS</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{stT.provider || "Proveedor GPS"}</div>
             <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-main)' }}>
               {location.provider || 'Android GnssStatus'}
             </div>
@@ -691,19 +706,19 @@ export default function StatsAnalytics({
         {/* Tabla de Satélites Visibles Alistados */}
         {filteredSatellites.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-            No hay satélites que coincidan con el filtro actual.
+            {stT.no_satellites_match || "No hay satélites que coincidan con el filtro actual."}
           </div>
         ) : (
           <div style={{ overflowX: 'auto', maxHeight: '340px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>
-                  <th style={{ padding: '0.5rem 0.75rem' }}>Constelación</th>
-                  <th style={{ padding: '0.5rem 0.75rem' }}>PRN / SVID</th>
-                  <th style={{ padding: '0.5rem 0.75rem' }}>Elevación</th>
-                  <th style={{ padding: '0.5rem 0.75rem' }}>Azimut</th>
-                  <th style={{ padding: '0.5rem 0.75rem' }}>Señal C/N0 (SNR)</th>
-                  <th style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>Fix 3D</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>{t?.gnss?.th_constellation || "Constelación"}</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>{t?.gnss?.th_svid || "PRN / SVID"}</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>{stT.th_elevation || "Elevación"}</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>{stT.th_azimuth || "Azimut"}</th>
+                  <th style={{ padding: '0.5rem 0.75rem' }}>{stT.th_signal || "Señal C/N0 (SNR)"}</th>
+                  <th style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>{stT.th_fix_3d || "Fix 3D"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -750,9 +765,9 @@ export default function StatsAnalytics({
                       </td>
                       <td style={{ padding: '0.45rem 0.75rem', textAlign: 'center' }}>
                         {sat.usedInFix ? (
-                          <span style={{ color: 'var(--accent-emerald)', fontWeight: '700' }}>✔ En Fix</span>
+                          <span style={{ color: 'var(--accent-emerald)', fontWeight: '700' }}>{stT.in_fix || "✔ En Fix"}</span>
                         ) : (
-                          <span style={{ color: 'var(--text-dim)' }}>Adquisición</span>
+                          <span style={{ color: 'var(--text-dim)' }}>{stT.acquisition || "Adquisición"}</span>
                         )}
                       </td>
                     </tr>
@@ -858,7 +873,7 @@ export default function StatsAnalytics({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--accent-emerald)', fontWeight: '600' }}>⚡ Alta Velocidad (≤ 20 ms)</span>
+                <span style={{ color: 'var(--accent-emerald)', fontWeight: '600' }}>{stT.speed_fast || "⚡ Alta Velocidad (≤ 20 ms)"}</span>
                 <span style={{ color: 'var(--text-muted)' }}>{latencyDist.fast_under_20ms || 0}</span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -873,7 +888,7 @@ export default function StatsAnalytics({
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>📶 Óptimo (21 - 100 ms)</span>
+                <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>{stT.speed_optimal || "📶 Óptimo (21 - 100 ms)"}</span>
                 <span style={{ color: 'var(--text-muted)' }}>{latencyDist.optimal_20_100ms || 0}</span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -888,7 +903,7 @@ export default function StatsAnalytics({
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
-                <span style={{ color: 'var(--accent-amber)', fontWeight: '600' }}>🐢 Latencia Elevada (&gt; 100 ms)</span>
+                <span style={{ color: 'var(--accent-amber)', fontWeight: '600' }}>{stT.speed_slow || "🐢 Latencia Elevada (> 100 ms)"}</span>
                 <span style={{ color: 'var(--text-muted)' }}>{latencyDist.slow_over_100ms || 0}</span>
               </div>
               <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>

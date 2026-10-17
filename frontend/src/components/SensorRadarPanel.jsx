@@ -103,7 +103,10 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
 
         setLastMessage({
           type: 'success',
-          text: `¡${result.device_type} detectado con éxito! [${result.hostname} - ${result.mac}]`
+          text: (scT.detected_success || '¡{type} detectado con éxito! [{hostname} - {mac}]')
+            .replace('{type}', result.device_type)
+            .replace('{hostname}', result.hostname)
+            .replace('{mac}', result.mac)
         })
 
         if (onDeviceDiscovered) {
@@ -118,7 +121,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
     } catch (err) {
       setLastMessage({
         type: 'error',
-        text: err.message || 'Error durante la lectura del sensor.'
+        text: err.message || (scT.sweep_error || 'Error durante la lectura del sensor.')
       })
     } finally {
       setActiveSensor(null)
@@ -127,7 +130,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
 
   const handleScanAllSensors = async () => {
     setActiveSensor('ALL_SENSORS')
-    setLastMessage({ type: 'info', text: 'Ejecutando barrido completo de todos los sensores y protocolos de radio...' })
+    setLastMessage({ type: 'info', text: scT.sweep_running || 'Ejecutando barrido completo de todos los sensores y protocolos de radio...' })
 
     try {
       // Ejecutar en secuencia los sensores disponibles
@@ -159,10 +162,10 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
 
       setLastMessage({
         type: 'success',
-        text: '¡Barrido multi-sensor completado! Se actualizaron e integraron todos los nodos de radio en el inventario.'
+        text: scT.sweep_completed || '¡Barrido multi-sensor completado! Se actualizaron e integraron todos los nodos de radio en el inventario.'
       })
     } catch (err) {
-      setLastMessage({ type: 'error', text: 'Error durante el barrido multi-sensor: ' + err.message })
+      setLastMessage({ type: 'error', text: (scT.sweep_error || 'Error durante el barrido multi-sensor: ') + err.message })
     } finally {
       setActiveSensor(null)
     }
@@ -173,7 +176,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
       id: 'ble',
       title: 'Bluetooth / BLE',
       proto: 'IEEE 802.15.1 • 2.4 GHz',
-      desc: 'Beacons, SmartTags, Wearables y Periféricos',
+      desc: scT.cards?.ble_desc || 'Beacons, SmartTags, Wearables y Periféricos',
       icon: Bluetooth,
       color: '#34d399',
       border: 'rgba(16, 185, 129, 0.4)',
@@ -183,7 +186,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
       id: 'nfc',
       title: 'NFC Contactless',
       proto: 'ISO/IEC 14443 • 13.56 MHz',
-      desc: 'Tarjetas RFID, Badges, NTAG y Tokens',
+      desc: scT.cards?.nfc_desc || 'Tarjetas RFID, Badges, NTAG y Tokens',
       icon: NFC,
       color: '#facc15',
       border: 'rgba(234, 179, 8, 0.4)',
@@ -193,7 +196,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
       id: 'gps',
       title: 'GPS / GNSS Telemetría',
       proto: 'Galileo / GPS / GLONASS Fix',
-      desc: 'Geoposicionamiento, Altitud y NMEA 0183',
+      desc: scT.cards?.gps_desc || 'Geoposicionamiento, Altitud y NMEA 0183',
       icon: GPS,
       color: '#4ade80',
       border: 'rgba(34, 197, 94, 0.4)',
@@ -203,7 +206,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
       id: 'uwb',
       title: 'UWB (Ultra-Wideband)',
       proto: 'IEEE 802.15.4z • 6.5-8.0 GHz',
-      desc: 'Ranging ToF de hiperprecisión y balizas',
+      desc: scT.cards?.uwb_desc || 'Ranging ToF de hiperprecisión y balizas',
       icon: UWB,
       color: '#22d3ee',
       border: 'rgba(6, 182, 212, 0.4)',
@@ -212,8 +215,8 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
     {
       id: 'zigbee',
       title: 'Zigbee 3.0',
-      proto: 'IEEE 802.15.4 • Red de Malla',
-      desc: 'Philips Hue, Zigbee2MQTT, Aqara y Sonoff',
+      proto: `IEEE 802.15.4 • ${scT.cards?.mesh_network || 'Red de Malla'}`,
+      desc: scT.cards?.zigbee_desc || 'Philips Hue, Zigbee2MQTT, Aqara y Sonoff',
       icon: Zigbee,
       color: '#fbbf24',
       border: 'rgba(245, 158, 11, 0.4)',
@@ -223,7 +226,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
       id: 'zwave',
       title: 'Z-Wave Plus',
       proto: 'ITU-T G.9959 • 868/908 MHz',
-      desc: 'Controladores Aeotec, Fibaro y Z-Wave JS',
+      desc: scT.cards?.zwave_desc || 'Controladores Aeotec, Fibaro y Z-Wave JS',
       icon: ZWave,
       color: '#60a5fa',
       border: 'rgba(59, 130, 246, 0.4)',
@@ -233,7 +236,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
       id: 'thread',
       title: 'Thread / Matter',
       proto: '6LoWPAN / IPv6 Mesh',
-      desc: 'Border Routers (Apple, Nest, OpenThread)',
+      desc: scT.cards?.thread_desc || 'Border Routers (Apple, Nest, OpenThread)',
       icon: Thread,
       color: '#c084fc',
       border: 'rgba(168, 85, 247, 0.4)',
@@ -242,8 +245,8 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
     {
       id: 'lpwan',
       title: 'LPWAN (LoRaWAN)',
-      proto: 'Semtech UDP 1700 • Larga Distancia',
-      desc: 'Gateways ChirpStack, TTN, Dragino, Mikrotik',
+      proto: `Semtech UDP 1700 • ${scT.cards?.long_range || 'Larga Distancia'}`,
+      desc: scT.cards?.lpwan_desc || 'Gateways ChirpStack, TTN, Dragino, Mikrotik',
       icon: LPWAN,
       color: '#f472b6',
       border: 'rgba(236, 72, 153, 0.4)',
@@ -290,7 +293,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
                 border: '1px solid rgba(16, 185, 129, 0.35)',
                 fontWeight: '700'
               }}>
-                8 SENSORES ACTIVOS
+                {scT.active_badge || "8 SENSORES ACTIVOS"}
               </span>
               {capabilities.isAndroidApp && (
                 <span style={{
@@ -302,7 +305,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
                   border: '1px solid rgba(99, 102, 241, 0.35)',
                   fontWeight: '700'
                 }}>
-                  MODO ANDROID NATIVO
+                  {scT.android_native_badge || "MODO ANDROID NATIVO"}
                 </span>
               )}
             </div>
@@ -335,7 +338,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
               fontSize: '0.75rem'
             }}
           >
-            {isExpanded ? '▲ Ocultar' : '▼ Mostrar Sensores'}
+            {isExpanded ? (scT.hide_btn || '▲ Ocultar') : (scT.show_btn || '▼ Mostrar Sensores')}
           </button>
         </div>
       </div>
@@ -422,7 +425,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
                       color: isCurrentlyScanning ? 'var(--accent-cyan)' : 'var(--accent-emerald)',
                       border: `1px solid ${isCurrentlyScanning ? 'var(--accent-cyan)' : 'rgba(16, 185, 129, 0.3)'}`
                     }}>
-                      {isCurrentlyScanning ? 'Sondeando...' : stat?.count ? `${stat.count} Nodos` : 'Activo'}
+                      {isCurrentlyScanning ? (scT.scanning_status || 'Sondeando...') : stat?.count ? `${stat.count} ${scT.nodes_count || 'Nodos'}` : (scT.active_now || 'Activo')}
                     </span>
                   </div>
 
@@ -433,14 +436,14 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255, 255, 255, 0.07)', paddingTop: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>
-                    {stat?.last ? `Último: ${stat.last}` : 'Sensor disponible'}
+                    {stat?.last ? `${scT.last_prefix || 'Último:'} ${stat.last}` : (scT.available || 'Sensor disponible')}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                     {sensor.id === 'gps' && onOpenGnssModal && (
                       <button
                         onClick={() => onOpenGnssModal(stat?.gnss_telemetry || null)}
-                        title="Ver satélites visibles y posición actual en el radar polar"
+                        title={scT.view_satellites_title || "Ver satélites visibles y posición actual en el radar polar"}
                         style={{
                           background: 'rgba(6, 182, 212, 0.2)',
                           color: 'var(--accent-cyan)',
@@ -458,7 +461,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
                         }}
                       >
                         <Satellite size={12} className="animate-pulse" />
-                        <span>Satélites</span>
+                        <span>{scT.view_satellites || "Satélites"}</span>
                       </button>
                     )}
 
@@ -481,7 +484,7 @@ export default function SensorRadarPanel({ onDeviceDiscovered, onTriggerScan, on
                       }}
                     >
                       <IconComp size={12} className={isCurrentlyScanning ? "animate-spin" : ""} />
-                      <span>{isCurrentlyScanning ? 'Rastreando' : 'Escanear'}</span>
+                      <span>{isCurrentlyScanning ? (scT.scanning_action || 'Rastreando') : (scT.scan_action || 'Escanear')}</span>
                     </button>
                   </div>
                 </div>

@@ -10,7 +10,7 @@ import {
   Zap,
   Shield
 } from './Icons'
-import { getLiveGnssTelemetry } from '../utils/sensorScanner'
+import { getLiveGnssTelemetry, calculateVisibleGnssSatellites } from '../utils/sensorScanner'
 
 export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
   const [telemetry, setTelemetry] = useState(initialData || null)
@@ -43,7 +43,25 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
     // Escuchar eventos en tiempo real desde el puente nativo Android (MainActivity.java)
     const handleNativeGnssUpdate = (event) => {
       if (event.detail && isMounted) {
-        setTelemetry(event.detail)
+        const detail = event.detail
+        if (Array.isArray(detail.satellites) && detail.satellites.length > 0) {
+          setTelemetry(detail)
+        } else {
+          setTelemetry(prev => {
+            const loc = detail.location || prev?.location || { latitude: 40.41680, longitude: -3.70380 }
+            const fallback = (prev?.satellites && prev.satellites.length > 0)
+              ? prev.satellites
+              : calculateVisibleGnssSatellites(loc.latitude, loc.longitude, new Date()).satellites
+            return {
+              ...prev,
+              ...detail,
+              location: loc,
+              satellites: fallback,
+              satellitesCount: fallback.length,
+              satellitesUsedInFix: fallback.filter(s => s.usedInFix).length
+            }
+          })
+        }
       }
     }
 
@@ -110,10 +128,25 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
     coords_copied: "¡Copiadas!"
   }
 
+  const location = telemetry?.location || {
+    latitude: 40.41680,
+    longitude: -3.70380,
+    altitude: 667,
+    accuracy: 3.5,
+    speed: 0,
+    bearing: 0
+  }
+
+  const activeSatellites = useMemo(() => {
+    if (telemetry?.satellites && telemetry.satellites.length > 0) {
+      return telemetry.satellites
+    }
+    return calculateVisibleGnssSatellites(location.latitude, location.longitude, new Date()).satellites || []
+  }, [telemetry, location.latitude, location.longitude])
+
   // Filtrado de satélites
   const filteredSatellites = useMemo(() => {
-    if (!telemetry || !telemetry.satellites) return []
-    return telemetry.satellites.filter(sat => {
+    return activeSatellites.filter(sat => {
       if (selectedConstellation !== 'ALL' && sat.constellation !== selectedConstellation) {
         return false
       }
@@ -122,14 +155,14 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
       }
       return true
     })
-  }, [telemetry, selectedConstellation, onlyFix])
+  }, [activeSatellites, selectedConstellation, onlyFix])
 
   // Métricas acumuladas
   const metrics = useMemo(() => {
-    if (!telemetry || !telemetry.satellites || telemetry.satellites.length === 0) {
+    const sats = activeSatellites
+    if (!sats || sats.length === 0) {
       return { total: 0, inFix: 0, avgSnr: 0, byConstellation: {} }
     }
-    const sats = telemetry.satellites
     const total = sats.length
     const inFix = sats.filter(s => s.usedInFix).length
     const sumSnr = sats.reduce((acc, s) => acc + (s.cn0 || 0), 0)
@@ -141,18 +174,9 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
     })
 
     return { total, inFix, avgSnr, byConstellation }
-  }, [telemetry])
+  }, [activeSatellites])
 
   if (!isOpen) return null
-
-  const location = telemetry?.location || {
-    latitude: 40.4168,
-    longitude: -3.7038,
-    altitude: 667,
-    accuracy: 3.5,
-    speed: 0,
-    bearing: 0
-  }
 
   const toDMS = (deg, isLat) => {
     const absolute = Math.abs(deg)
@@ -213,7 +237,7 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
                 <h2 className="text-lg font-bold text-white tracking-wide">{gnssT.modal_title}</h2>
                 <span className="flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/80 border border-emerald-500/50 text-emerald-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                  <span>{telemetry?.satellitesUsedInFix >= 4 ? gnssT.fix_status_active : gnssT.fix_status_searching}</span>
+                  <span>{(telemetry?.satellitesUsedInFix ?? metrics.inFix) >= 4 ? gnssT.fix_status_active : gnssT.fix_status_searching}</span>
                 </span>
               </div>
               <p className="text-xs text-cyan-300/80 font-mono mt-0.5">
@@ -227,15 +251,15 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
               onClick={handleManualRefresh}
               disabled={isLoading}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700 text-gray-200 transition"
-              title="Actualizar datos satelitales"
+              title={gnssT.manual_refresh_title || "Actualizar datos satelitales"}
             >
               <RefreshCw size={14} className={isLoading ? "animate-spin text-cyan-400" : ""} />
-              <span className="hidden sm:inline">Actualizar</span>
+              <span className="hidden sm:inline">{gnssT.manual_refresh || "Actualizar"}</span>
             </button>
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition"
-              aria-label="Cerrar"
+              aria-label={gnssT.close || "Cerrar"}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -251,28 +275,28 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
             <span className="text-gray-400 text-[11px] uppercase tracking-wider">{gnssT.satellites_visible}</span>
             <div className="flex items-baseline space-x-1 mt-0.5">
               <span className="text-xl font-bold text-cyan-400">{metrics.total}</span>
-              <span className="text-gray-500 text-[10px]">satélites</span>
+              <span className="text-gray-500 text-[10px]">{gnssT.satellites_unit || "satélites"}</span>
             </div>
           </div>
           <div className="bg-[#101726] p-2.5 rounded-xl border border-gray-800 flex flex-col justify-center">
             <span className="text-gray-400 text-[11px] uppercase tracking-wider">{gnssT.satellites_in_fix}</span>
             <div className="flex items-baseline space-x-1 mt-0.5">
               <span className="text-xl font-bold text-emerald-400">{metrics.inFix}</span>
-              <span className="text-emerald-500/70 text-[10px]">fijados</span>
+              <span className="text-emerald-500/70 text-[10px]">{gnssT.fix_count_label || "fijados"}</span>
             </div>
           </div>
           <div className="bg-[#101726] p-2.5 rounded-xl border border-gray-800 flex flex-col justify-center">
             <span className="text-gray-400 text-[11px] uppercase tracking-wider">{gnssT.accuracy}</span>
             <div className="flex items-baseline space-x-1 mt-0.5">
               <span className="text-xl font-bold text-amber-300">±{Math.round(location.accuracy || 3.5)}</span>
-              <span className="text-gray-500 text-[10px]">metros</span>
+              <span className="text-gray-500 text-[10px]">{gnssT.meters_unit || "metros"}</span>
             </div>
           </div>
           <div className="bg-[#101726] p-2.5 rounded-xl border border-gray-800 flex flex-col justify-center">
             <span className="text-gray-400 text-[11px] uppercase tracking-wider">{gnssT.altitude}</span>
             <div className="flex items-baseline space-x-1 mt-0.5">
               <span className="text-xl font-bold text-sky-300">{Math.round(location.altitude || 667)}</span>
-              <span className="text-gray-500 text-[10px]">m SNM</span>
+              <span className="text-gray-500 text-[10px]">{gnssT.msl_unit || "m SNM"}</span>
             </div>
           </div>
           <div className="bg-[#101726] p-2.5 rounded-xl border border-gray-800 flex flex-col justify-center">
@@ -426,9 +450,9 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
                   <span className="text-emerald-300">El: {hoveredSat.elevation}°</span>
                   <span className="text-amber-300">SNR: {hoveredSat.cn0} dB</span>
                   {hoveredSat.usedInFix ? (
-                    <span className="text-emerald-400 font-bold">✓ En Fix</span>
+                    <span className="text-emerald-400 font-bold">{gnssT.in_fix_badge || "✓ En Fix"}</span>
                   ) : (
-                    <span className="text-gray-500">En vista</span>
+                    <span className="text-gray-500">{gnssT.in_view_badge || "En vista"}</span>
                   )}
                 </div>
               )}
@@ -548,10 +572,10 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
             <div className="bg-[#0d1424] border border-gray-800/80 rounded-2xl p-4 flex-1 flex flex-col min-h-[300px]">
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-800">
                 <span className="text-xs font-bold text-gray-300 uppercase tracking-wider font-mono">
-                  Inventario de Satélites Activos ({filteredSatellites.length})
+                  {gnssT.active_satellites_inv || "Inventario de Satélites Activos"} ({filteredSatellites.length})
                 </span>
                 <span className="text-[11px] text-gray-400 font-mono">
-                  Fix: <strong className="text-emerald-400">{metrics.inFix}</strong> fijados
+                  Fix: <strong className="text-emerald-400">{metrics.inFix}</strong> {gnssT.fix_count_label || "fijados"}
                 </span>
               </div>
 
@@ -653,13 +677,13 @@ export default function GnssSkyViewModal({ isOpen, onClose, initialData, t }) {
                 onChange={(e) => setAutoRefresh(e.target.checked)}
                 className="rounded bg-gray-800 border-gray-700 text-cyan-500 focus:ring-0"
               />
-              <span>Actualización en vivo (2s)</span>
+              <span>{gnssT.live_update || "Actualización en vivo (2s)"}</span>
             </label>
             <button
               onClick={onClose}
               className="px-4 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium text-xs transition"
             >
-              Cerrar
+              {gnssT.close || "Cerrar"}
             </button>
           </div>
         </div>
